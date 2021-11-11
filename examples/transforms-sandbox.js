@@ -11,8 +11,7 @@ export class Transforms_Sandbox_Base extends Scene {
     // scene demonstrating a few concepts.  A subclass of it, Transforms_Sandbox,
     // exposes only the display() method, which actually places and draws the shapes,
     // isolating that code so it can be experimented with on its own.
-    constructor() {
-        // constructor(): Scenes begin by populating initial values like the Shapes and Materials they'll need.
+    constructor() {                  // constructor(): Scenes begin by populating initial values like the Shapes and Materials they'll need.
         super();
         this.hover = this.swarm = false;
         // At the beginning of our program, load one of each of these shape
@@ -116,10 +115,13 @@ export class Transforms_Sandbox extends Transforms_Sandbox_Base {
         // Call the setup code that we left inside the base class:
         super.display(context, program_state);
 
-        // From here on down it's just some example shapes drawn for you -- freely
-        // replace them with your own!  Notice the usage of the Mat4 functions
-        // translation(), scale(), and rotation() to generate matrices, and the
-        // function times(), which generates products of matrices.
+        /**********************************
+         Start coding down here!!!!
+         **********************************/
+            // From here on down it's just some example shapes drawn for you -- freely
+            // replace them with your own!  Notice the usage of the Mat4 functions
+            // translation(), scale(), and rotation() to generate matrices, and the
+            // function times(), which generates products of matrices.
 
         // const blue = color(0, 0, 1, 1), yellow = color(1, 1, 0, 1);
         const blue = hex_color("#1a9ffa"), yellow = hex_color("#fdc03a")

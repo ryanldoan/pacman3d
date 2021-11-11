@@ -722,13 +722,15 @@ const Keyboard_Manager = tiny.Keyboard_Manager =
 
 
 const Graphics_Card_Object = tiny.Graphics_Card_Object =
-    class Graphics_Card_Object {                                       // ** Graphics_Card_Object** Extending this base class allows an object to
+    class Graphics_Card_Object {
+        // ** Graphics_Card_Object** Extending this base class allows an object to
         // copy itself onto a WebGL context on demand, whenever it is first used for
         // a GPU draw command on a context it hasn't seen before.
         constructor() {
             this.gpu_instances = new Map()
         }     // Track which GPU contexts this object has copied itself onto.
-        copy_onto_graphics_card(context, intial_gpu_representation) {                           // copy_onto_graphics_card():  Our object might need to register to multiple
+        copy_onto_graphics_card(context, intial_gpu_representation) {
+            // copy_onto_graphics_card():  Our object might need to register to multiple
             // GPU contexts in the case of multiple drawing areas.  If this is a new GPU
             // context for this object, copy the object to the GPU.  Otherwise, this
             // object already has been copied over, so get a pointer to the existing
@@ -1012,9 +1014,8 @@ const Container = tiny.Container =
         // To override, simply pass in "replacement", a JS Object of keys/values you want to override, to generate
         // a new object.  For shorthand you can leave off the key and only provide a value (pass in directly as
         // "replacement") and a guess will be used for which member you want overridden based on type.
-        override(replacement)
-        // override(): Generate a copy by value, replacing certain properties.
-        {
+        override(replacement) {
+            // override(): Generate a copy by value, replacing certain properties.
             return this.helper(replacement, Object.create(this.constructor.prototype))
         }
 

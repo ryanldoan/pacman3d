@@ -1,15 +1,10 @@
-# Shadow Demo
+# TinyGraphics Demo 3
 
-This is a Tiny-Graphics demo about advanced shadow implementation that with 2 passes.
+This repo contains the code examples for assignment 3 of UCLA CS174A in Fall 2021.
 
-![main](./docs/main.png)
+The examples located in the file `demo3.js`. You will find `demo2.js` as well since I modified the repo of demo2 to this one.
 
-### Code Location
+Please find the description of these codes from the recording of the TA section 1C of week 5 & 6.
 
-Most of the code are located in `./examples/shadow-demo.js`. You can copy that file into the `examples` folder of your repos (like assignments or team project), it should be compatible and you can import it as your main scene.
-
-### References
-
-https://webglfundamentals.org/webgl/lessons/webgl-shadows.html
-
-https://learnopengl.com/Advanced-Lighting/Shadows/Shadow-Mapping
+Library code from
+[tiny-graphics](https://github.com/encyclopedia-of-code/tiny-graphics-js).
