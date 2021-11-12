@@ -19,7 +19,7 @@ export class Demo3 extends Scene {
         // *** Materials
         this.materials = {
             wall: new Material(new defs.Phong_Shader(),
-                {ambient: 0.4, diffusivity: 0.6, color: hex_color("#888888")}),
+                {ambient: 0.4, diffusivity: 0.6, color: hex_color("#4444CC")}),
             pacman: new Material(new defs.Phong_Shader(),
                 {ambient: 0.4, diffusivity: 0.6, color: hex_color("#FFFF00")}),
         }
@@ -33,85 +33,148 @@ export class Demo3 extends Scene {
     make_control_panel() {
         // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements.
         this.key_triggered_button("Forward", ["u"], () => {
-            this.FORWARD = true;
-            this.BACKWARD = false;
-            this.RIGHT = false;
-            this.LEFT = false;
+            this.dir = 'f';
         });
         this.new_line();
         this.key_triggered_button("Backward", ["j"], () => {
-            this.FORWARD = false;
-            this.BACKWARD = true;
-            this.RIGHT = false;
-            this.LEFT = false;
+            this.dir = 'b';
         });
         this.new_line();
         this.key_triggered_button("Right", ["k"], () => {
-            this.FORWARD = false;
-            this.BACKWARD = false;
-            this.RIGHT = true;
-            this.LEFT = false;
+            this.dir = 'r';
         });
         this.new_line();
         this.key_triggered_button("Left", ["h"], () => {
-            this.FORWARD = false;
-            this.BACKWARD = false;
-            this.RIGHT = false;
-            this.LEFT = true;
+            this.dir = 'l';
         });
         this.new_line();
-        this.key_triggered_button("Stop", ["0"], () => {
-            this.FORWARD = false;
-            this.BACKWARD = false;
-            this.RIGHT = false;
-            this.LEFT = false;
+        this.key_triggered_button("Stop", ["m"], () => {
+            this.dir = 's';
         });
     }
 
-    make_walls(context, program_state, left=true){
+    make_wall(context, program_state, loc, length, vert=false, width=1){
+        width = width / 2;
+        length = length / 2;
+
+        let m;
+        if (vert == true){
+            m = Mat4.scale(width, 1, length);
+        }else{
+            m = Mat4.scale(length, 1, width);
+        }
+        this.shapes.cube.draw(context, program_state, loc.times(m), this.materials.wall);
+    }
+
+    make_side(context, program_state, left=false){
         let mirror = 1;
         if (left)
             mirror = -1;
+        //top sideways T
+        let model_trans_wall_1 = Mat4.translation(mirror*6,0,-13.5);
+        let model_trans_wall_2 = Mat4.translation(mirror*4,0,-13.5);
+        //vert side
+        let model_trans_wall_3 = Mat4.translation(mirror*6,0,-6);
+        //horiz side
+        let model_trans_wall_4 = Mat4.translation(mirror*4.5,0,-1.5);
+        //upside down L
+        let model_trans_wall_5 = Mat4.translation(mirror*10,0,-1.5);
+        let model_trans_wall_6 = Mat4.translation(mirror*9,0,0.5);
+        //upside down T
+        let model_trans_wall_7 = Mat4.translation(mirror*7,0,4.5);
+        let model_trans_wall_8 = Mat4.translation(mirror*6,0,2.5);
+        //horiz top side
+        let model_trans_wall_9 = Mat4.translation(mirror*10,0,-16.5);
+        //top box
+        let model_trans_wall_10 = Mat4.translation(mirror*4.5,0,-20);
+        //top side box
+        let model_trans_wall_11 = Mat4.translation(mirror*10,0,-20);
 
-        let model_trans_wall_1 = Mat4.translation(-5, 2 - 0.1, 0).times(Mat4.scale(0.33, 1, 10)); 
-        let model_trans_wall_2 = Mat4.translation(+5, 2 - 0.1, 0).times(Mat4.scale(0.33, 1, 10));
-        let model_trans_wall_3 = Mat4.translation(0, 2 - 0.1, -15).times(Mat4.scale(6.25, 1, 0.33));
-        let model_trans_wall_4 = Mat4.translation(+9, 2 - 0.1, 0).times(Mat4.scale(4.25, 1, 0.33)); 
-        let model_trans_wall_5 = Mat4.translation(+15, 2 - 0.1, -10).times(Mat4.scale(0.33, 1, 6.25));
-        let model_trans_wall_6 = Mat4.translation(-11, 2 - 0.1, -10).times(Mat4.scale(6.25, 1, 0.33));
-        let model_trans_wall_7 = Mat4.translation(0, 2 - 0.1, -20).times(Mat4.scale(6.25, 1, 0.33));
-        let model_trans_wall_8 = Mat4.translation(+6, 2 - 0.1, -26).times(Mat4.scale(0.33, 1, 6.25));
-        let model_trans_wall_9 = Mat4.translation(-6, 2 - 0.1, -26).times(Mat4.scale(0.33, 1, 6.25));
-        let model_trans_wall_10 = Mat4.translation(-17, 2 - 0.1, 0).times(Mat4.scale(0.33, 1, 10));
-        let model_trans_wall_11 = Mat4.translation(-11, 2 - 0.1, +10).times(Mat4.scale(6.25, 1, 0.33));
-        let model_trans_wall_12 = Mat4.translation(+15, 2 - 0.1, +10).times(Mat4.scale(0.33, 1, 6.25)); // far right
-        let model_trans_wall_13 = Mat4.translation(-24, 2 - 0.1, -20).times(Mat4.scale(6.25, 1, 0.33));
-        let model_trans_wall_14 = Mat4.translation(-18, 2 - 0.1, -26).times(Mat4.scale(0.33, 1, 6.25));
-        let model_trans_wall_15 = Mat4.translation(-30, 2 - 0.1, -26).times(Mat4.scale(0.33, 1, 6.25));
-        let model_trans_wall_16 = Mat4.translation(-30, 2 - 0.1, -15).times(Mat4.scale(10, 1, 0.33));
-        let model_trans_wall_17 = Mat4.translation(-30, 2 - 0.1, -11).times(Mat4.scale(0.33, 1, 4.25));
-        let model_trans_wall_18 = Mat4.translation(18, 2 - 0.1, -32).times(Mat4.scale(12, 1, 0.33));
-        let model_trans_wall_19 = Mat4.translation(-42, 2 - 0.1, -32).times(Mat4.scale(12, 1, 0.33));
+        //outer walls
+        //top jutout
+        let model_trans_wall_12 = Mat4.translation(mirror*11,0,-10.25);
+        let model_trans_wall_13 = Mat4.translation(mirror*11,0,-13.75);
+        let model_trans_wall_14 = Mat4.translation(mirror*8.75,0,-12);
+        //bottom jutout
+        let model_trans_wall_15 = Mat4.translation(mirror*11,0,-4.25);
+        let model_trans_wall_16 = Mat4.translation(mirror*11,0,-7.75);
+        let model_trans_wall_17 = Mat4.translation(mirror*8.75,0,-6);
+        //horiz out of side wall
+        let model_trans_wall_18 = Mat4.translation(mirror*12.5,0,1.5);
+        //top side wall
+        let model_trans_wall_19 = Mat4.translation(mirror*13.75,0,-18.5);
+        //bottom side wall
+        let model_trans_wall_20 = Mat4.translation(mirror*13.75,0,1.5);
 
-        this.shapes.cube.draw(context, program_state, model_trans_wall_1, this.materials.wall);
-        this.shapes.cube.draw(context, program_state, model_trans_wall_2, this.materials.wall);
-        this.shapes.cube.draw(context, program_state, model_trans_wall_3, this.materials.wall);
-        this.shapes.cube.draw(context, program_state, model_trans_wall_4, this.materials.wall); 
-        this.shapes.cube.draw(context, program_state, model_trans_wall_5, this.materials.wall); 
-        this.shapes.cube.draw(context, program_state, model_trans_wall_6, this.materials.wall); 
-        this.shapes.cube.draw(context, program_state, model_trans_wall_7, this.materials.wall); 
-        this.shapes.cube.draw(context, program_state, model_trans_wall_8, this.materials.wall); 
-        this.shapes.cube.draw(context, program_state, model_trans_wall_9, this.materials.wall); 
-        this.shapes.cube.draw(context, program_state, model_trans_wall_10, this.materials.wall); 
-        this.shapes.cube.draw(context, program_state, model_trans_wall_11, this.materials.wall); 
-        this.shapes.cube.draw(context, program_state, model_trans_wall_12, this.materials.wall); 
-        this.shapes.cube.draw(context, program_state, model_trans_wall_13, this.materials.wall); 
-        this.shapes.cube.draw(context, program_state, model_trans_wall_14, this.materials.wall); 
-        this.shapes.cube.draw(context, program_state, model_trans_wall_15, this.materials.wall); 
-        this.shapes.cube.draw(context, program_state, model_trans_wall_16, this.materials.wall); 
-        this.shapes.cube.draw(context, program_state, model_trans_wall_17, this.materials.wall); 
-        this.shapes.cube.draw(context, program_state, model_trans_wall_18, this.materials.wall); 
-        this.shapes.cube.draw(context, program_state, model_trans_wall_19, this.materials.wall); 
+
+        this.make_wall(context, program_state, model_trans_wall_1, 7, true);
+        this.make_wall(context, program_state, model_trans_wall_2, 3);
+        this.make_wall(context, program_state, model_trans_wall_3, 4, true);
+        this.make_wall(context, program_state, model_trans_wall_4, 4);
+        this.make_wall(context, program_state, model_trans_wall_5, 3);
+        this.make_wall(context, program_state, model_trans_wall_6, 3, true);
+        this.make_wall(context, program_state, model_trans_wall_7, 9);
+        this.make_wall(context, program_state, model_trans_wall_8, 3, true);
+        this.make_wall(context, program_state, model_trans_wall_9, 3);
+
+        this.make_wall(context, program_state, model_trans_wall_10, 4, false, 2);
+        this.make_wall(context, program_state, model_trans_wall_11, 3, false, 2);
+
+        this.make_wall(context, program_state, model_trans_wall_12, 5, false, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_13, 5, false, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_14, 4, true, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_15, 5, false, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_16, 5, false, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_17, 4, true, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_18, 2);
+        this.make_wall(context, program_state, model_trans_wall_19, 10, true, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_20, 12, true, 0.5);
+       
+    }
+
+    make_walls(context, program_state, left=true){
+        //center structs
+        //T in front of pacman
+        let model_trans_wall_1 = Mat4.translation(0,0,-4.5);
+        let model_trans_wall_2 = Mat4.translation(0,0,-2.5);
+        //T behind pacman
+        let model_trans_wall_3 = Mat4.translation(0,0,1.5);
+        let model_trans_wall_4 = Mat4.translation(0,0,3.5);
+        //top most T
+        let model_trans_wall_5 = Mat4.translation(0,0,-16.5);
+        let model_trans_wall_6 = Mat4.translation(0,0,-14.5);
+        //ghost box
+        let model_trans_wall_7 = Mat4.translation(0,0,-7.25);
+        let model_trans_wall_8 = Mat4.translation(3.25,0,-9);
+        let model_trans_wall_9 = Mat4.translation(-3.25,0,-9);
+        let model_trans_wall_10 = Mat4.translation(0,0,-10.75); //change later to make gate
+        
+        //outer walls
+        //vert out of top wall
+        let model_trans_wall_11 = Mat4.translation(0,0,-21);
+        //top
+        let model_trans_wall_12 = Mat4.translation(0,0,-23.25);
+        //bottom
+        let model_trans_wall_13 = Mat4.translation(0,0,7.25);
+
+        this.make_wall(context, program_state, model_trans_wall_1, 7);
+        this.make_wall(context, program_state, model_trans_wall_2, 3, true);
+        this.make_wall(context, program_state, model_trans_wall_3, 7);
+        this.make_wall(context, program_state, model_trans_wall_4, 3, true);
+        this.make_wall(context, program_state, model_trans_wall_5, 7);
+        this.make_wall(context, program_state, model_trans_wall_6, 3, true);
+
+        this.make_wall(context, program_state, model_trans_wall_7, 7, false, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_8, 4, true, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_9, 4, true, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_10, 7, false, 0.5);
+
+        this.make_wall(context, program_state, model_trans_wall_11, 4, true);
+        this.make_wall(context, program_state, model_trans_wall_12, 27, false, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_13, 27, false, 0.5);
+
+        this.make_side(context, program_state);
+        this.make_side(context, program_state, true);
     }
 
     display(context, program_state) {
@@ -136,25 +199,29 @@ export class Demo3 extends Scene {
 
         this.make_walls(context, program_state);
         
-        let model_transform = Mat4.identity().times(Mat4.scale(1,1,1)).times(Mat4.translation(this.posX, 0, this.posZ));
+        let model_transform = Mat4.identity().times(Mat4.translation(this.posX, 0, this.posZ));
 
-        if (this.FORWARD) {
-            this.posZ -= 0.1;
-        }
-        else if (this.BACKWARD) {
-            this.posZ += 0.1;
-        }
-        else if (this.RIGHT) {
-            this.posX += 0.1;
-        }
-        else if (this.LEFT) {
-            this.posX -= 0.1;
-        }
+        switch(this.dir){
+            case 'f':
+                this.posZ -= 0.1;
+                break;
+            case 'l':
+                this.posX -= 0.1;
+                break;
+            case 'r':
+                this.posX += 0.1;
+                break;
+            case 'b':
+                this.posZ += 0.1;
+                break;
+            default:
+                break;
+        };
 
         this.shapes.pacman.draw(context, program_state, model_transform, this.materials.pacman);
-        if (this.FORWARD != null && this.BACKWARD != null && this.RIGHT != null && this.LEFT != null){
+        if (this.dir != null){
             let desired = Mat4.inverse(model_transform.times(Mat4.translation(0,0,5)));
-            program_state.set_camera(desired);
+            //program_state.set_camera(desired);
         }
     }
 }
