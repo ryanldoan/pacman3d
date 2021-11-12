@@ -77,7 +77,7 @@ export class Demo3 extends Scene {
         // The parameters of the Light are: position, color, size
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
         
-        let model_transformation = Mat4.identity().times(Mat4.scale(1,1,1)).times(Mat4.translation(this.posX, 0, this.posZ));
+        let model_transform = Mat4.identity().times(Mat4.scale(1,1,1)).times(Mat4.translation(this.posX, 0, this.posZ));
 
         if (this.FORWARD) {
             this.posZ -= 0.1;
@@ -92,9 +92,11 @@ export class Demo3 extends Scene {
             this.posX -= 0.1;
         }
 
-        this.shapes.pacman.draw(context, program_state, model_transformation, this.materials.pacman);
-        let desired;
-        program_state.set_camera(desired);
+        this.shapes.pacman.draw(context, program_state, model_transform, this.materials.pacman);
+        if (this.FORWARD != null && this.BACKWARD != null && this.RIGHT != null && this.LEFT != null){
+            let desired = Mat4.inverse(model_transform.times(Mat4.translation(0,0,-1)));
+            program_state.set_camera(desired);
+        }
     }
 }
 
