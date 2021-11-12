@@ -28,9 +28,8 @@ export class Demo3 extends Scene {
         this.initial_camera_location = Mat4.inverse((this.model_transform).times(Mat4.translation(0,3,5)).times(Mat4.rotation(-Math.PI/12,1,0,0)));
         this.follow = true;
         this.abs_dir = 'f';
+        this.scale = 1;
         this.speed = 1;
-        this.posX = 0;
-        this.posZ = 0;
     }
 
     make_control_panel() {
@@ -39,16 +38,16 @@ export class Demo3 extends Scene {
             this.dir = 'f';
         });
         this.new_line();
-        this.key_triggered_button("Backward", ["j"], () => {
-            this.dir = 'b';
-        });
-        this.new_line();
         this.key_triggered_button("Right", ["k"], () => {
             this.dir = 'r';
         });
-        this.new_line();
+        //this.new_line();
         this.key_triggered_button("Left", ["h"], () => {
             this.dir = 'l';
+        });
+        this.new_line();
+        this.key_triggered_button("Backward", ["j"], () => {
+            this.dir = 'b';
         });
         this.new_line();
         this.key_triggered_button("Stop", ["m"], () => {
@@ -56,21 +55,23 @@ export class Demo3 extends Scene {
         });
         this.new_line(); this.new_line();
         this.key_triggered_button("Camera POV", ["c"], () => {
-            let T;
             if (this.follow){
-                this.model_transform = T = (this.model_transform).times(Mat4.inverse(Mat4.rotation(this.getAngle(this.abs_dir),0,1,0)));
+                this.model_transform = (this.model_transform).times(Mat4.inverse(Mat4.rotation(this.getAngle(this.abs_dir),0,1,0)));
+                if (this.dir !== 's')
+                    this.dir = this.abs_dir;
+            }else{
+                this.model_transform = (this.model_transform).times(Mat4.rotation(this.getAngle(this.abs_dir),0,1,0));
+                if (this.dir !== 's')
+                    this.dir = 'f';
             }
-            else{
-                T = this.model_transform;
-                this.model_transform = (this.model_transform).times(T).times(Mat4.rotation(this.getAngle(this.abs_dir),0,1,0)).times(Mat4.inverse(T));
-            }
+            
             this.follow ^= 1;
         });
     }
 
     display(context, program_state) {
         // display():  Called once per frame of animation.
-        
+        this.scale = 2;
         // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
         if (!context.scratchpad.controls) {
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
@@ -83,12 +84,12 @@ export class Demo3 extends Scene {
 
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
 
-        const light_position = vec4(0, 50, -15, 1);
+        const light_position = vec4(0, 50*this.scale, -15*this.scale, 1);
 
         // The parameters of the Light are: position, color, size
-        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 5000)];
+        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 5000*this.scale**2)];
 
-        this.make_walls(context, program_state);
+        this.make_walls(context, program_state, this.scale);
 
         let T;
         const move = -0.1-(this.speed-1)*0.01;
@@ -99,16 +100,17 @@ export class Demo3 extends Scene {
             T = this.model_transform;
             this.abs_dir = this.getNewDir();
             if (this.dir != null){
-                if (this.dir === 's') this.dir = null;
-                else this.dir = 'f';
+                if (this.dir !== 's') this.dir = 'f';
 
                 this.model_transform = (this.model_transform).times(Mat4.rotation(this.getAngle(this.abs_dir),0,1,0)).times(Mat4.inverse(T));
                 if (this.dir === 'f')
                     this.model_transform = (this.model_transform).times(Mat4.translation(0,0,move));
             }
         }else{
-            this.abs_dir = this.dir;
-            switch(this.abs_dir){
+            if (this.dir !== 's' && this.dir != null)
+                this.abs_dir = this.dir;
+
+            switch(this.dir){
                 case 'l': T = Mat4.translation(move,0,0);
                     break;
                 case 'r': T = Mat4.translation(-move,0,0);
@@ -130,7 +132,7 @@ export class Demo3 extends Scene {
         if (this.follow)
             desired = Mat4.inverse((this.model_transform).times(Mat4.translation(0,3,5)).times(Mat4.rotation(-Math.PI/12,1,0,0)));
         else
-            desired = Mat4.look_at(vec3(0, 50, 10), vec3(0, 0, -5), vec3(0, 0, -1));//Mat4.inverse((this.model_transform).times(Mat4.translation(0,50,10)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
+            desired = Mat4.look_at(vec3(0, 50*this.scale, 10), vec3(0, 0, -5), vec3(0, 0, -1));//Mat4.inverse((this.model_transform).times(Mat4.translation(0,50,10)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
             
         desired = desired.map((x,i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.15));
         program_state.set_camera(desired);
@@ -186,7 +188,7 @@ export class Demo3 extends Scene {
         return this.abs_dir;
     }
 
-    make_wall(context, program_state, loc, length, vert=false, width=1){
+    make_wall(context, program_state, loc, length, maze_scale=1, vert=false, width=1){
         width = width / 2;
         length = length / 2;
 
@@ -196,10 +198,10 @@ export class Demo3 extends Scene {
         }else{
             m = Mat4.scale(length, 1, width);
         }
-        this.shapes.cube.draw(context, program_state, loc.times(m), this.materials.wall);
+        this.shapes.cube.draw(context, program_state, Mat4.scale(maze_scale,1,maze_scale).times(loc).times(m), this.materials.wall);
     }
 
-    make_side(context, program_state, left=false){
+    make_side(context, program_state, maze_scale=1, left=false){
         let mirror = 1;
         if (left)
             mirror = -1;
@@ -240,32 +242,32 @@ export class Demo3 extends Scene {
         let model_trans_wall_20 = Mat4.translation(mirror*13.75,0,1.5);
 
 
-        this.make_wall(context, program_state, model_trans_wall_1, 7, true);
-        this.make_wall(context, program_state, model_trans_wall_2, 3);
-        this.make_wall(context, program_state, model_trans_wall_3, 4, true);
-        this.make_wall(context, program_state, model_trans_wall_4, 4);
-        this.make_wall(context, program_state, model_trans_wall_5, 3);
-        this.make_wall(context, program_state, model_trans_wall_6, 3, true);
-        this.make_wall(context, program_state, model_trans_wall_7, 9);
-        this.make_wall(context, program_state, model_trans_wall_8, 3, true);
-        this.make_wall(context, program_state, model_trans_wall_9, 3);
+        this.make_wall(context, program_state, model_trans_wall_1, 7, maze_scale, true);
+        this.make_wall(context, program_state, model_trans_wall_2, 3, maze_scale);
+        this.make_wall(context, program_state, model_trans_wall_3, 4, maze_scale, true);
+        this.make_wall(context, program_state, model_trans_wall_4, 4, maze_scale);
+        this.make_wall(context, program_state, model_trans_wall_5, 3, maze_scale);
+        this.make_wall(context, program_state, model_trans_wall_6, 3, maze_scale, true);
+        this.make_wall(context, program_state, model_trans_wall_7, 9, maze_scale);
+        this.make_wall(context, program_state, model_trans_wall_8, 3, maze_scale, true);
+        this.make_wall(context, program_state, model_trans_wall_9, 3, maze_scale);
 
-        this.make_wall(context, program_state, model_trans_wall_10, 4, false, 2);
-        this.make_wall(context, program_state, model_trans_wall_11, 3, false, 2);
+        this.make_wall(context, program_state, model_trans_wall_10, 4, maze_scale, false, 2);
+        this.make_wall(context, program_state, model_trans_wall_11, 3, maze_scale, false, 2);
 
-        this.make_wall(context, program_state, model_trans_wall_12, 5, false, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_13, 5, false, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_14, 4, true, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_15, 5, false, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_16, 5, false, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_17, 4, true, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_18, 2);
-        this.make_wall(context, program_state, model_trans_wall_19, 10, true, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_20, 12, true, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_12, 5, maze_scale, false, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_13, 5, maze_scale, false, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_14, 4, maze_scale, true, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_15, 5, maze_scale, false, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_16, 5, maze_scale, false, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_17, 4, maze_scale, true, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_18, 2, maze_scale);
+        this.make_wall(context, program_state, model_trans_wall_19, 10, maze_scale, true, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_20, 12, maze_scale, true, 0.5);
        
     }
 
-    make_walls(context, program_state, left=true){
+    make_walls(context, program_state, maze_scale){
         //center structs
         //T in front of pacman
         let model_trans_wall_1 = Mat4.translation(0,0,-4.5);
@@ -290,23 +292,23 @@ export class Demo3 extends Scene {
         //bottom
         let model_trans_wall_13 = Mat4.translation(0,0,7.25);
 
-        this.make_wall(context, program_state, model_trans_wall_1, 7);
-        this.make_wall(context, program_state, model_trans_wall_2, 3, true);
-        this.make_wall(context, program_state, model_trans_wall_3, 7);
-        this.make_wall(context, program_state, model_trans_wall_4, 3, true);
-        this.make_wall(context, program_state, model_trans_wall_5, 7);
-        this.make_wall(context, program_state, model_trans_wall_6, 3, true);
+        this.make_wall(context, program_state, model_trans_wall_1, 7, maze_scale);
+        this.make_wall(context, program_state, model_trans_wall_2, 3, maze_scale, true);
+        this.make_wall(context, program_state, model_trans_wall_3, 7, maze_scale);
+        this.make_wall(context, program_state, model_trans_wall_4, 3, maze_scale, true);
+        this.make_wall(context, program_state, model_trans_wall_5, 7, maze_scale);
+        this.make_wall(context, program_state, model_trans_wall_6, 3, maze_scale, true);
 
-        this.make_wall(context, program_state, model_trans_wall_7, 7, false, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_8, 4, true, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_9, 4, true, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_10, 7, false, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_7, 7, maze_scale, false, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_8, 4, maze_scale, true, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_9, 4, maze_scale, true, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_10, 7, maze_scale, false, 0.5);
 
-        this.make_wall(context, program_state, model_trans_wall_11, 4, true);
-        this.make_wall(context, program_state, model_trans_wall_12, 27, false, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_13, 27, false, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_11, 4, maze_scale, true);
+        this.make_wall(context, program_state, model_trans_wall_12, 27, maze_scale, false, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_13, 27, maze_scale, false, 0.5);
 
-        this.make_side(context, program_state);
-        this.make_side(context, program_state, true);
+        this.make_side(context, program_state, maze_scale);
+        this.make_side(context, program_state, maze_scale, true);
     }
 }
