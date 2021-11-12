@@ -24,10 +24,10 @@ export class Demo3 extends Scene {
                 {ambient: 0.4, diffusivity: 0.6, color: hex_color("#FFFF00")}),
         }
 
-        this.follow = false;
+        this.follow = true;
         this.abs_dir = 'f';
         this.scale = 2;
-        this.speed = 1;
+        this.speed = 3;
         this.model_transform = Mat4.identity();
         this.pov1 = Mat4.inverse((this.model_transform).times(Mat4.translation(0,3,5)).times(Mat4.rotation(-Math.PI/12,1,0,0)));
         this.pov3 = Mat4.look_at(vec3(0, 50*this.scale, 10*this.scale), vec3(0, 0, -5*this.scale), vec3(0, 0, -1));;
@@ -72,7 +72,7 @@ export class Demo3 extends Scene {
 
     display(context, program_state) {
         // display():  Called once per frame of animation.
-        
+        this.speed = 5;
         // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
         if (!context.scratchpad.controls) {
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
@@ -98,7 +98,7 @@ export class Demo3 extends Scene {
         this.make_walls(context, program_state, this.scale);
 
         let T;
-        const move = -0.1-(this.speed-1)*0.01;
+        const move = -0.1-(this.speed-1)*0.02;
         
         if (this.follow){
             if (this.dir != null)
