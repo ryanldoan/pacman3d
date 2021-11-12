@@ -59,6 +59,13 @@ export class Demo3 extends Scene {
             this.RIGHT = false;
             this.LEFT = true;
         });
+        this.new_line();
+        this.key_triggered_button("Stop", ["0"], () => {
+            this.FORWARD = false;
+            this.BACKWARD = false;
+            this.RIGHT = false;
+            this.LEFT = false;
+        });
     }
 
     make_walls(context, program_state, left=true){
