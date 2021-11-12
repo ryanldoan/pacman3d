@@ -59,7 +59,7 @@ export class Demo3 extends Scene {
 
     display(context, program_state) {
         // display():  Called once per frame of animation.
-        let desired;
+        
         // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
         if (!context.scratchpad.controls) {
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
@@ -80,19 +80,21 @@ export class Demo3 extends Scene {
         let model_transformation = Mat4.identity().times(Mat4.scale(1,1,1)).times(Mat4.translation(this.posX, 0, this.posZ));
 
         if (this.FORWARD) {
-            this.posX += 0.1;
+            this.posZ -= 0.1;
         }
         else if (this.BACKWARD) {
-            this.posX -= 0.1;
-        }
-        else if (this.RIGHT) {
             this.posZ += 0.1;
         }
+        else if (this.RIGHT) {
+            this.posX += 0.1;
+        }
         else if (this.LEFT) {
-            this.posZ -= 0.1;
+            this.posX -= 0.1;
         }
 
         this.shapes.pacman.draw(context, program_state, model_transformation, this.materials.pacman);
+        let desired;
+        program_state.set_camera(desired);
     }
 }
 
