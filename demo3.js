@@ -21,6 +21,9 @@ export class Demo3 extends Scene {
         }
 
         this.initial_camera_location = Mat4.look_at(vec3(0, 5, 5), vec3(0, 0, 0), vec3(0, 1, 0));
+        this.posX = 0;
+        this.posZ = 0;
+        this.speed = 0;
     }
 
     make_control_panel() {
@@ -54,25 +57,6 @@ export class Demo3 extends Scene {
         });
     }
 
-    draw_pacman(context, program_state, model_transformation, t) {    
-        if (this.FORWARD) {
-            model_transformation = model_transformation.times(Mat4.translation(t,0,0));
-        }
-        else if (this.BACKWARD) {
-            model_transformation = model_transformation.times(Mat4.translation(-t,0,0));
-        }
-        else if (this.RIGHT) {
-            model_transformation = model_transformation.times(Mat4.translation(0,0,t));
-        }
-        else if (this.LEFT) {
-            model_transformation = model_transformation.times(Mat4.translation(0,0,-t));
-        }
-
-        this.shapes.pacman.draw(context, program_state, model_transformation, this.materials.pacman);
-
-        return model_transformation;
-    }
-
     display(context, program_state) {
         // display():  Called once per frame of animation.
         let desired;
@@ -92,8 +76,23 @@ export class Demo3 extends Scene {
 
         // The parameters of the Light are: position, color, size
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
-        let model_transformation = Mat4.identity();
-        model_transformation = this.draw_pacman(context, program_state, model_transformation, t);
+        
+        let model_transformation = Mat4.identity().times(Mat4.scale(1,1,1)).times(Mat4.translation(this.posX, 0, this.posZ));
+
+        if (this.FORWARD) {
+            this.posX += 0.1;
+        }
+        else if (this.BACKWARD) {
+            this.posX -= 0.1;
+        }
+        else if (this.RIGHT) {
+            this.posZ += 0.1;
+        }
+        else if (this.LEFT) {
+            this.posZ -= 0.1;
+        }
+
+        this.shapes.pacman.draw(context, program_state, model_transformation, this.materials.pacman);
     }
 }
 
