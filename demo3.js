@@ -11,29 +11,13 @@ export class Demo3 extends Scene {
 
         // At the beginning of our program, load one of each of these shape definitions onto the GPU.
         this.shapes = {
-            torus: new defs.Torus(15, 15),
-            torus2: new defs.Torus(3, 15),
-            sphere: new defs.Subdivision_Sphere(4),
-            circle: new defs.Regular_2D_Polygon(1, 15),
-            // TODO:  Fill in as many additional shape instances as needed in this key/value table.
-            //        (Requirement 1)
-            s1: new defs.Subdivision_Sphere(1),
-            s2: new defs.Subdivision_Sphere(2),
-            s3: new defs.Subdivision_Sphere(3),
-            s4: new defs.Subdivision_Sphere(4),
-            f1: new (defs.Subdivision_Sphere.prototype.make_flat_shaded_version())(1),
-            f2: new (defs.Subdivision_Sphere.prototype.make_flat_shaded_version())(2),
-            f3: new (defs.Subdivision_Sphere.prototype.make_flat_shaded_version())(3),
-            f4: new (defs.Subdivision_Sphere.prototype.make_flat_shaded_version())(4),
+            pacman: new defs.Subdivision_Sphere(4),
         };
 
         // *** Materials
         this.materials = {
-            test: new Material(new defs.Phong_Shader(),
-                {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
-            ver1: new Material(new Shader_Version_1(), { color: hex_color("#00ffff") }),
-            ver2: new Material(new Shader_Version_2(), { color: hex_color("#00ffff"), second_color: hex_color("#ff0000") }),
-            ver3: new Material(new Shader_Version_3(), { color: hex_color("#00ffff") }),
+            pacman: new Material(new defs.Phong_Shader(),
+                {ambient: 1, diffusivity: 0.4, color: hex_color("#FFFF00")}),
         }
 
         this.initial_camera_location = Mat4.look_at(vec3(0, 5, 5), vec3(0, 0, 0), vec3(0, 1, 0));
@@ -41,21 +25,58 @@ export class Demo3 extends Scene {
 
     make_control_panel() {
         // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements.
-        this.key_triggered_button("View solar system", ["Control", "0"], () => this.attached = () => null);
+        this.key_triggered_button("Forward", ["u"], () => {
+            this.FORWARD = true;
+            this.BACKWARD = false;
+            this.RIGHT = false;
+            this.LEFT = false;
+        });
         this.new_line();
-        this.key_triggered_button("Attach to planet 1", ["Control", "1"], () => this.attached = () => this.planet_1);
-        this.key_triggered_button("Attach to planet 2", ["Control", "2"], () => this.attached = () => this.planet_2);
+        this.key_triggered_button("Backward", ["j"], () => {
+            this.FORWARD = false;
+            this.BACKWARD = true;
+            this.RIGHT = false;
+            this.LEFT = false;
+        });
         this.new_line();
-        this.key_triggered_button("Attach to planet 3", ["Control", "3"], () => this.attached = () => this.planet_3);
-        this.key_triggered_button("Attach to planet 4", ["Control", "4"], () => this.attached = () => this.planet_4);
+        this.key_triggered_button("Right", ["k"], () => {
+            this.FORWARD = false;
+            this.BACKWARD = false;
+            this.RIGHT = true;
+            this.LEFT = false;
+        });
         this.new_line();
-        this.key_triggered_button("Attach to moon", ["Control", "m"], () => this.attached = () => this.moon);
+        this.key_triggered_button("Left", ["h"], () => {
+            this.FORWARD = false;
+            this.BACKWARD = false;
+            this.RIGHT = false;
+            this.LEFT = true;
+        });
+    }
+
+    draw_pacman(context, program_state, model_transformation, t) {    
+        if (this.FORWARD) {
+            model_transformation = model_transformation.times(Mat4.translation(t,0,0));
+        }
+        else if (this.BACKWARD) {
+            model_transformation = model_transformation.times(Mat4.translation(-t,0,0));
+        }
+        else if (this.RIGHT) {
+            model_transformation = model_transformation.times(Mat4.translation(0,0,t));
+        }
+        else if (this.LEFT) {
+            model_transformation = model_transformation.times(Mat4.translation(0,0,-t));
+        }
+
+        this.shapes.pacman.draw(context, program_state, model_transformation, this.materials.pacman);
+
+        return model_transformation;
     }
 
     display(context, program_state) {
         // display():  Called once per frame of animation.
         let desired;
-// Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
+        // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
         if (!context.scratchpad.controls) {
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
             // Define the global camera and projection matrices, which are stored in program_state.
@@ -67,54 +88,12 @@ export class Demo3 extends Scene {
 
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
 
-        const light_position = vec4(0, 5, 5, 1);
+        const light_position = vec4(0, 100, 100, 1);
 
         // The parameters of the Light are: position, color, size
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
-        // // Use following for Point Light Source with Changing Size
-        // program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10 ** (t % 3))];
-
-        // // Shader Example 1
-        // this.shapes.torus.draw(context, program_state, Mat4.scale(1, 1, 0.2), this.materials.ver1);
-
-        // Shader Example 2
-        this.shapes.torus.draw(context, program_state, Mat4.scale(1, 1, 0.2), this.materials.ver2);
-
-        // // Shader Example 3
-        // let model_transformation = Mat4.translation(3 * Math.sin(t), 0, 0).times(
-        //     Mat4.scale(1, 1, 0.2)
-        // );
-        // this.shapes.torus.draw(context, program_state, model_transformation, this.materials.ver2);
-
-        // Shader Example 4
-        let model_transformation = Mat4.translation(3 * Math.sin(t), 0, 0.5).times(
-            Mat4.scale(1, 1, 0.2)
-        );
-        this.shapes.torus.draw(context, program_state, model_transformation, this.materials.ver3);
-
-        // // Subdivisions
-        // this.shapes.s1.draw(context, program_state, Mat4.translation(-3, 0, 0), this.materials.test);
-        // this.shapes.s2.draw(context, program_state, Mat4.translation(-1, 0, 0), this.materials.test);
-        // this.shapes.s3.draw(context, program_state, Mat4.translation(+1, 0, 0), this.materials.test);
-        // this.shapes.s4.draw(context, program_state, Mat4.translation(+3, 0, 0), this.materials.test);
-        // // Flat Shapes
-        // this.shapes.f1.draw(context, program_state, Mat4.translation(-3, 0, 0), this.materials.test);
-        // this.shapes.f2.draw(context, program_state, Mat4.translation(-1, 0, 0), this.materials.test);
-        // this.shapes.f3.draw(context, program_state, Mat4.translation(+1, 0, 0), this.materials.test);
-        // this.shapes.f4.draw(context, program_state, Mat4.translation(+3, 0, 0), this.materials.test);
-
-        // // Example for Requirement about the camera.
-        // this.planet_1 = Mat4.translation(-3, 0, 0);
-        // this.planet_2 = Mat4.translation(-1, 0, 0);
-        // this.planet_3 = Mat4.translation(+1, 0, 0);
-        // this.planet_4 = Mat4.translation(+3, 0, 0);
-        //
-        // if (this.attached && this.attached() !== null) {
-        //     desired = Mat4.inverse(this.attached().times(Mat4.translation(0, 0, 10)));
-        // } else {
-        //     desired = this.initial_camera_location;
-        // }
-        // program_state.set_camera(desired);
+        let model_transformation = Mat4.identity();
+        model_transformation = this.draw_pacman(context, program_state, model_transformation, t);
     }
 }
 
