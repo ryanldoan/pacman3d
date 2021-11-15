@@ -5,115 +5,48 @@ const {
 } = tiny;
 const {Cube, Axis_Arrows, Textured_Phong, Phong_Shader, Basic_Shader, Subdivision_Sphere} = defs
 
-export class Demo3 extends Scene {
-    constructor() {
-        // constructor(): Scenes begin by populating initial values like the Shapes and Materials they'll need.
-        super();
 
-        // At the beginning of our program, load one of each of these shape definitions onto the GPU.
-        this.shapes = {
-            cube: new Cube(),
-            pacman: new defs.Subdivision_Sphere(4),
-        };
-
-        // *** Materials
-        this.materials = {
-            wall: new Material(new defs.Phong_Shader(),
-                {ambient: 0.4, diffusivity: 0.6, color: hex_color("#4444CC")}),
-            pacman: new Material(new defs.Phong_Shader(),
-                {ambient: 0.4, diffusivity: 0.6, color: hex_color("#FFFF00")}),
-        }
-
-        this.follow = true;
-        this.abs_dir = 'f';
-        this.scale = 2;
-        this.speed = 3;
-        this.model_transform = Mat4.identity();
-        this.pov1 = Mat4.inverse((this.model_transform).times(Mat4.translation(0,3,5)).times(Mat4.rotation(-Math.PI/12,1,0,0)));
-        this.pov3 = Mat4.look_at(vec3(0, 50*this.scale, 10*this.scale), vec3(0, 0, -5*this.scale), vec3(0, 0, -1));;
+class Maze_Runner {
+    constructor(model_info, loc_transform, speed=1, abs_dir='f', dir='s'){
+        this.model_info = model_info;
+        this.dir = dir;
+        this.abs_dir = abs_dir;
+        this.speed = speed;
+        this.model_transform = Mat4.rotation(this.getAngle(this.abs_dir),0,1,0).times(loc_transform);
     }
 
-    make_control_panel() {
-        // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements.
-        this.key_triggered_button("Forward", ["u"], () => {
-            this.dir = 'f';
-        });
-        this.new_line();
-        this.key_triggered_button("Right", ["k"], () => {
-            this.dir = 'r';
-        });
-        //this.new_line();
-        this.key_triggered_button("Left", ["h"], () => {
-            this.dir = 'l';
-        });
-        this.new_line();
-        this.key_triggered_button("Backward", ["j"], () => {
-            this.dir = 'b';
-        });
-        this.new_line();
-        this.key_triggered_button("Stop", ["m"], () => {
-            this.dir = 's';
-        });
-        this.new_line(); this.new_line();
-        this.key_triggered_button("Camera POV", ["c"], () => {
-            if (this.follow){
-                this.model_transform = (this.model_transform).times(Mat4.inverse(Mat4.rotation(this.getAngle(this.abs_dir),0,1,0)));
-                if (this.dir !== 's' && this.dir != null)
-                    this.dir = this.abs_dir;
-            }else{
-                this.model_transform = (this.model_transform).times(Mat4.rotation(this.getAngle(this.abs_dir),0,1,0));
-                if (this.dir !== 's' && this.dir != null)
-                    this.dir = 'f';
-            }
-            
-            this.follow ^= 1;
-        });
+    move(follow){
+        const move = -0.1-this.speed*0.05;
+        let T = this.getTransMatrix(move, follow);
+        this.updateMatrix(T);
+        return this.model_transform;
     }
 
-    display(context, program_state) {
-        // display():  Called once per frame of animation.
-        this.speed = 5;
-        // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
-        if (!context.scratchpad.controls) {
-            this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
-            
-            // Define the global camera and projection matrices, which are stored in program_state.
-            let initial_camera_location;
-            if (this.follow) initial_camera_location = this.pov1;
-            else initial_camera_location = this.pov3;
+    updateMatrix(m){
+        this.model_transform = (this.model_transform).times(m);
+    }
 
-            program_state.set_camera(initial_camera_location);
-        }
+    getRotationMatrix(){
+        return Mat4.rotation(this.getAngle(this.abs_dir),0,1,0);
+    }
 
-        program_state.projection_transform = Mat4.perspective(
-            Math.PI / 4, context.width / context.height, .1, 1000);
-
-        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
-
-        const light_position = vec4(0, 50*this.scale, -15*this.scale, 1);
-
-        // The parameters of the Light are: position, color, size
-        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 5000*this.scale**2)];
-
-        this.make_walls(context, program_state, this.scale);
-
+    getTransMatrix(move, follow=false){
         let T;
-        const move = -0.1-(this.speed-1)*0.02;
-        
-        if (this.follow){
-            if (this.dir != null)
-                this.model_transform = (this.model_transform).times(Mat4.inverse(Mat4.rotation(this.getAngle(this.abs_dir),0,1,0)));
+        if (follow){
+            this.updateMatrix(Mat4.inverse(this.getRotationMatrix()));
             T = this.model_transform;
-            this.abs_dir = this.getNewDir();
-            if (this.dir != null){
-                if (this.dir !== 's') this.dir = 'f';
 
-                this.model_transform = (this.model_transform).times(Mat4.rotation(this.getAngle(this.abs_dir),0,1,0)).times(Mat4.inverse(T));
-                if (this.dir === 'f')
-                    this.model_transform = (this.model_transform).times(Mat4.translation(0,0,move));
-            }
+            this.abs_dir = this.getNewDir();
+            if (this.dir !== 's')
+                this.dir = 'f';
+
+            this.updateMatrix((this.getRotationMatrix()).times(Mat4.inverse(T)));
+
+            if (this.dir === 'f')
+                this.updateMatrix(Mat4.translation(0,0,move));
+
         }else{
-            if (this.dir !== 's' && this.dir != null)
+            if (this.dir !== 's')
                 this.abs_dir = this.dir;
 
             switch(this.dir){
@@ -129,34 +62,7 @@ export class Demo3 extends Scene {
                     break;
             }
         }
-        this.model_transform = (this.model_transform).times(T);
-            
-
-        this.shapes.pacman.draw(context, program_state, this.model_transform, this.materials.pacman);
-
-        let desired;
-        if (this.follow)
-            desired = Mat4.inverse((this.model_transform).times(Mat4.translation(0,3,5)).times(Mat4.rotation(-Math.PI/12,1,0,0)));
-        else
-            desired = this.pov3;//Mat4.inverse((this.model_transform).times(Mat4.translation(0,50,10)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
-            
-        desired = desired.map((x,i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.1));
-        program_state.set_camera(desired);
-    }
-
-    getAngle(dir){
-        let angle;
-        switch(dir){
-            case 'l': angle = Math.PI/2;
-                break;
-            case 'r': angle = -Math.PI/2;
-                break;
-            case 'b': angle = Math.PI;
-                break;
-            default: angle = 0;
-                break;
-        };
-        return angle;
+        return T;
     }
 
     getNewDir(){
@@ -185,13 +91,206 @@ export class Demo3 extends Scene {
                 };
                 break;
             case 'f':
-                if (this.dir != null && this.dir !== 's')
+                if (this.dir !== 's')
                     return this.dir;
                 break;
             default:
                 break;
         };
         return this.abs_dir;
+    }
+
+    getAngle(dir){
+        let angle;
+        switch(dir){
+            case 'l': angle = Math.PI/2;
+                break;
+            case 'r': angle = -Math.PI/2;
+                break;
+            case 'b': angle = Math.PI;
+                break;
+            default: angle = 0;
+                break;
+        };
+        return angle;
+    }
+
+}
+
+class PacMan extends Maze_Runner {
+    constructor(speed=1){
+        const model_info = {
+            shape: new defs.Subdivision_Sphere(4),
+            material: new Material(new defs.Phong_Shader(),
+                {ambient: 0.4, diffusivity: 0.6, color: hex_color("#FFFF00")}),
+        }
+        //PacMan starts at world origin, begin facing forward
+        super(model_info, Mat4.identity(), speed, 'f');
+    }
+}
+
+class Ghost extends Maze_Runner {
+    constructor(loc_transform, speed=1){
+        const model_info = {
+            shape: new defs.Subdivision_Sphere(3),
+            material: new Material(new Gouraud_Shader(),
+                {ambient: 1, specularity: 1, diffusivity: 1, color: hex_color("#FF0000")}),
+        }
+        //Ghost starts at world origin, begin facing forward
+        super(model_info, loc_transform, speed, 'f');
+    }
+}
+
+export class Demo3 extends Scene {
+    constructor() {
+        // constructor(): Scenes begin by populating initial values like the Shapes and Materials they'll need.
+        super();
+
+        // At the beginning of our program, load one of each of these shape definitions onto the GPU.
+        this.shapes = {
+            cube: new Cube(),
+            pacman: new defs.Subdivision_Sphere(4),
+            ghost: new defs.Subdivision_Sphere(2)
+        };
+
+        // *** Materials
+        this.materials = {
+            wall: new Material(new defs.Phong_Shader(),
+                {ambient: 0.4, diffusivity: 0.6, color: hex_color("#4444CC")}),
+            pacman: new Material(new defs.Phong_Shader(),
+                {ambient: 0.4, diffusivity: 0.6, color: hex_color("#FFFF00")}),
+            ghost: new Material(new Gouraud_Shader(),
+                {ambient: 0.4, diffusivity: 0.6, color: hex_color("#FF0000")}),
+        }
+
+        this.follow = true;
+        this.scale = 2;
+        const speed = this.scale;
+
+        this.pacman = new PacMan(speed);
+        this.ghost1 = new Ghost(Mat4.translation(-2*this.scale,0,-9*this.scale), speed);
+        this.ghost2 = new Ghost(Mat4.translation(0,0,-9*this.scale), speed);
+        this.ghost3 = new Ghost(Mat4.translation(2*this.scale,0,-9*this.scale), speed);
+        this.alive = [this.pacman, this.ghost1, this.ghost2, this.ghost3];
+
+        this.pov1_matrix = Mat4.translation(0,3,4).times(Mat4.rotation(-Math.PI/12,1,0,0));
+        this.pov3 = Mat4.look_at(vec3(0, 50*this.scale, 10*this.scale), vec3(0, 0, -5*this.scale), vec3(0, 0, -1));;
+    }
+
+    make_control_panel() {
+        // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements.
+        this.key_triggered_button("Forward", ["u"], () => {
+            for (let i = 0; i < this.alive.length; ++i)
+                (this.alive[i]).dir = 'f';
+        });
+        this.new_line();
+        this.key_triggered_button("Right", ["k"], () => {
+            for (let i = 0; i < this.alive.length; ++i)
+                (this.alive[i]).dir = 'r';
+        });
+        //this.new_line();
+        this.key_triggered_button("Left", ["h"], () => {
+            for (let i = 0; i < this.alive.length; ++i)
+                (this.alive[i]).dir = 'l';
+        });
+        this.new_line();
+        this.key_triggered_button("Backward", ["j"], () => {
+            for (let i = 0; i < this.alive.length; ++i)
+                (this.alive[i]).dir = 'b';
+        });
+        this.new_line();
+        this.key_triggered_button("Stop", ["m"], () => {
+            for (let i = 0; i < this.alive.length; ++i)
+                (this.alive[i]).dir = 's';
+        });
+        this.new_line(); this.new_line();
+        this.key_triggered_button("Camera POV", ["c"], () => {
+            for (let i = 0; i < this.alive.length; ++i) {
+                const runner = this.alive[i];
+                let R = runner.getRotationMatrix();
+                let new_dir;
+                if (this.follow){
+                    runner.updateMatrix(Mat4.inverse(R));
+                    new_dir = runner.abs_dir;
+                }else{
+                    runner.updateMatrix(R);
+                    new_dir = 'f';
+                }
+
+                if (runner.dir !== 's')
+                    runner.dir = new_dir;
+            }
+            this.follow ^= 1;
+        });
+    }
+
+    render_scene(context, program_state, shadow_pass, draw_light_source=false, draw_shadow=false) {
+        // shadow_pass: true if this is the second pass that draw the shadow.
+        // draw_light_source: true if we want to draw the light source.
+        // draw_shadow: true if we want to draw the shadow
+
+        let light_position = this.light_position;
+        let light_color = this.light_color;
+        const t = program_state.animation_time;
+
+        program_state.draw_shadow = draw_shadow;
+
+        if (draw_light_source && shadow_pass) {
+            this.shapes.sphere.draw(context, program_state,
+                Mat4.translation(light_position[0], light_position[1], light_position[2]).times(Mat4.scale(.5,.5,.5)),
+                this.light_src.override({color: light_color}));
+        }
+        
+    }
+
+    display(context, program_state) {
+        // display():  Called once per frame of animation.
+
+        // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
+        if (!context.scratchpad.controls) {
+            this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
+            
+            // Define the global camera and projection matrices, which are stored in program_state.
+            let initial_camera_location;
+            if (this.follow)
+                initial_camera_location = Mat4.inverse((this.pacman.model_transform).times(this.pov1_matrix));
+            else initial_camera_location = this.pov3;
+
+            program_state.set_camera(initial_camera_location);
+        }
+        
+        program_state.projection_transform = Mat4.perspective(
+            Math.PI / 4, context.width / context.height, .1, 1000);
+
+        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
+
+        const light_position = vec4(0, 50*this.scale, -15*this.scale, 1);
+
+        // The parameters of the Light are: position, color, size
+        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 5000*this.scale**2)];
+
+        this.make_walls(context, program_state, this.scale);
+
+        for (let i = 0; i < this.alive.length; ++i) {
+            const runner = this.alive[i];
+            runner.move(this.follow);
+            runner.model_info.shape.draw(context, program_state, runner.model_transform, runner.model_info.material);
+        }
+        //this.pacman.move(this.follow);
+        //this.ghost.move(this.follow);
+
+        //this.shapes.pacman.draw(context, program_state, this.pacman.model_transform, this.materials.pacman);
+        //this.shapes.ghost.draw(context, program_state, this.ghost.model_transform, this.materials.ghost);
+
+
+        let desired;
+        if (this.follow)
+            desired = Mat4.inverse((this.pacman.model_transform).times(this.pov1_matrix));
+        else
+            desired = this.pov3;    //Mat4.inverse((this.pacman.model_transform).times(Mat4.translation(0,50,10)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
+            
+        desired = desired.map((x,i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.15));
+        program_state.set_camera(desired);
     }
 
     make_wall(context, program_state, loc, length, maze_scale=1, vert=false, width=1){
@@ -233,12 +332,12 @@ export class Demo3 extends Scene {
 
         //outer walls
         //top jutout
-        let model_trans_wall_12 = Mat4.translation(mirror*11,0,-10.25);
+        let model_trans_wall_12 = Mat4.translation(mirror*11.25,0,-10.25);
         let model_trans_wall_13 = Mat4.translation(mirror*11,0,-13.75);
         let model_trans_wall_14 = Mat4.translation(mirror*8.75,0,-12);
         //bottom jutout
         let model_trans_wall_15 = Mat4.translation(mirror*11,0,-4.25);
-        let model_trans_wall_16 = Mat4.translation(mirror*11,0,-7.75);
+        let model_trans_wall_16 = Mat4.translation(mirror*11.25,0,-7.75);
         let model_trans_wall_17 = Mat4.translation(mirror*8.75,0,-6);
         //horiz out of side wall
         let model_trans_wall_18 = Mat4.translation(mirror*12.5,0,1.5);
@@ -261,11 +360,11 @@ export class Demo3 extends Scene {
         this.make_wall(context, program_state, model_trans_wall_10, 4, maze_scale, false, 2);
         this.make_wall(context, program_state, model_trans_wall_11, 3, maze_scale, false, 2);
 
-        this.make_wall(context, program_state, model_trans_wall_12, 5, maze_scale, false, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_12, 5.5, maze_scale, false, 0.5);
         this.make_wall(context, program_state, model_trans_wall_13, 5, maze_scale, false, 0.5);
         this.make_wall(context, program_state, model_trans_wall_14, 4, maze_scale, true, 0.5);
         this.make_wall(context, program_state, model_trans_wall_15, 5, maze_scale, false, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_16, 5, maze_scale, false, 0.5);
+        this.make_wall(context, program_state, model_trans_wall_16, 5.5, maze_scale, false, 0.5);
         this.make_wall(context, program_state, model_trans_wall_17, 4, maze_scale, true, 0.5);
         this.make_wall(context, program_state, model_trans_wall_18, 2, maze_scale);
         this.make_wall(context, program_state, model_trans_wall_19, 10, maze_scale, true, 0.5);
@@ -316,5 +415,152 @@ export class Demo3 extends Scene {
 
         this.make_side(context, program_state, maze_scale);
         this.make_side(context, program_state, maze_scale, true);
+    }
+}
+
+class Gouraud_Shader extends Shader {
+    // This is a Shader using Phong_Shader as template
+    // TODO: Modify the glsl coder here to create a Gouraud Shader (Planet 2)
+
+    constructor(num_lights = 2) {
+        super();
+        this.num_lights = num_lights;
+    }
+
+    shared_glsl_code() {
+        // ********* SHARED CODE, INCLUDED IN BOTH SHADERS *********
+        return ` 
+        precision mediump float;
+        const int N_LIGHTS = ` + this.num_lights + `;
+        uniform float ambient, diffusivity, specularity, smoothness;
+        uniform vec4 light_positions_or_vectors[N_LIGHTS], light_colors[N_LIGHTS];
+        uniform float light_attenuation_factors[N_LIGHTS];
+        uniform vec4 shape_color;
+        uniform vec3 squared_scale, camera_center;
+        varying vec4 VERTEX_COLOR;
+
+        // Specifier "varying" means a variable's final value will be passed from the vertex shader
+        // on to the next phase (fragment shader), then interpolated per-fragment, weighted by the
+        // pixel fragment's proximity to each of the 3 vertices (barycentric interpolation).
+        varying vec3 N, vertex_worldspace;
+        // ***** PHONG SHADING HAPPENS HERE: *****                                       
+        vec3 phong_model_lights( vec3 N, vec3 vertex_worldspace ){                                        
+            // phong_model_lights():  Add up the lights' contributions.
+            vec3 E = normalize( camera_center - vertex_worldspace );
+            vec3 result = vec3( 0.0 );
+            for(int i = 0; i < N_LIGHTS; i++){
+                // Lights store homogeneous coords - either a position or vector.  If w is 0, the 
+                // light will appear directional (uniform direction from all points), and we 
+                // simply obtain a vector towards the light by directly using the stored value.
+                // Otherwise if w is 1 it will appear as a point light -- compute the vector to 
+                // the point light's location from the current surface point.  In either case, 
+                // fade (attenuate) the light as the vector needed to reach it gets longer.  
+                vec3 surface_to_light_vector = light_positions_or_vectors[i].xyz - 
+                                               light_positions_or_vectors[i].w * vertex_worldspace;                                             
+                float distance_to_light = length( surface_to_light_vector );
+
+                vec3 L = normalize( surface_to_light_vector );
+                vec3 H = normalize( L + E );
+                // Compute the diffuse and specular components from the Phong
+                // Reflection Model, using Blinn's "halfway vector" method:
+                float diffuse  =      max( dot( N, L ), 0.0 );
+                float specular = pow( max( dot( N, H ), 0.0 ), smoothness );
+                float attenuation = 1.0 / (1.0 + light_attenuation_factors[i] * distance_to_light * distance_to_light );
+                
+                vec3 light_contribution = shape_color.xyz * light_colors[i].xyz * diffusivity * diffuse
+                                                          + light_colors[i].xyz * specularity * specular;
+                result += attenuation * light_contribution;
+            }
+            return result;
+        } `;
+    }
+
+    vertex_glsl_code() {
+        // ********* VERTEX SHADER *********
+        return this.shared_glsl_code() + `
+            attribute vec3 position, normal;                   
+            // Position is expressed in object coordinates.
+            
+            uniform mat4 model_transform;
+            uniform mat4 projection_camera_model_transform; 
+    
+            void main(){                                                                   
+                // The vertex's final resting place (in NDCS):
+                gl_Position = projection_camera_model_transform * vec4( position, 1.0 );
+                // The final normal vector in screen space.
+                N = normalize( mat3( model_transform ) * normal / squared_scale);
+                vertex_worldspace = ( model_transform * vec4( position, 1.0 ) ).xyz;
+                VERTEX_COLOR = vec4( shape_color.xyz * ambient, shape_color.w );
+                VERTEX_COLOR.xyz = phong_model_lights( normalize( N ), vertex_worldspace );
+                
+            } `;
+    }
+
+    fragment_glsl_code() {
+        // ********* FRAGMENT SHADER *********
+        // A fragment is a pixel that's overlapped by the current triangle.
+        // Fragments affect the final image or get discarded due to depth.
+        return this.shared_glsl_code() + `
+            void main(){                                
+                gl_FragColor = VERTEX_COLOR;
+            } `;
+    }
+
+    send_material(gl, gpu, material) {
+        // send_material(): Send the desired shape-wide material qualities to the
+        // graphics card, where they will tweak the Phong lighting formula.
+        gl.uniform4fv(gpu.shape_color, material.color);
+        gl.uniform1f(gpu.ambient, material.ambient);
+        gl.uniform1f(gpu.diffusivity, material.diffusivity);
+        gl.uniform1f(gpu.specularity, material.specularity);
+        gl.uniform1f(gpu.smoothness, material.smoothness);
+    }
+
+    send_gpu_state(gl, gpu, gpu_state, model_transform) {
+        // send_gpu_state():  Send the state of our whole drawing context to the GPU.
+        const O = vec4(0, 0, 0, 1), camera_center = gpu_state.camera_transform.times(O).to3();
+        gl.uniform3fv(gpu.camera_center, camera_center);
+        // Use the squared scale trick from "Eric's blog" instead of inverse transpose matrix:
+        const squared_scale = model_transform.reduce(
+            (acc, r) => {
+                return acc.plus(vec4(...r).times_pairwise(r))
+            }, vec4(0, 0, 0, 0)).to3();
+        gl.uniform3fv(gpu.squared_scale, squared_scale);
+        // Send the current matrices to the shader.  Go ahead and pre-compute
+        // the products we'll need of the of the three special matrices and just
+        // cache and send those.  They will be the same throughout this draw
+        // call, and thus across each instance of the vertex shader.
+        // Transpose them since the GPU expects matrices as column-major arrays.
+        const PCM = gpu_state.projection_transform.times(gpu_state.camera_inverse).times(model_transform);
+        gl.uniformMatrix4fv(gpu.model_transform, false, Matrix.flatten_2D_to_1D(model_transform.transposed()));
+        gl.uniformMatrix4fv(gpu.projection_camera_model_transform, false, Matrix.flatten_2D_to_1D(PCM.transposed()));
+
+        // Omitting lights will show only the material color, scaled by the ambient term:
+        if (!gpu_state.lights.length)
+            return;
+
+        const light_positions_flattened = [], light_colors_flattened = [];
+        for (let i = 0; i < 4 * gpu_state.lights.length; i++) {
+            light_positions_flattened.push(gpu_state.lights[Math.floor(i / 4)].position[i % 4]);
+            light_colors_flattened.push(gpu_state.lights[Math.floor(i / 4)].color[i % 4]);
+        }
+        gl.uniform4fv(gpu.light_positions_or_vectors, light_positions_flattened);
+        gl.uniform4fv(gpu.light_colors, light_colors_flattened);
+        gl.uniform1fv(gpu.light_attenuation_factors, gpu_state.lights.map(l => l.attenuation));
+    }
+
+    update_GPU(context, gpu_addresses, gpu_state, model_transform, material) {
+        // update_GPU(): Define how to synchronize our JavaScript's variables to the GPU's.  This is where the shader
+        // recieves ALL of its inputs.  Every value the GPU wants is divided into two categories:  Values that belong
+        // to individual objects being drawn (which we call "Material") and values belonging to the whole scene or
+        // program (which we call the "Program_State").  Send both a material and a program state to the shaders
+        // within this function, one data field at a time, to fully initialize the shader for a draw.
+
+        // Fill in any missing fields in the Material object with custom defaults for this shader:
+        const defaults = {color: color(0, 0, 0, 1), ambient: 0, diffusivity: 1, specularity: 1, smoothness: 40};
+        material = Object.assign({}, defaults, material);
+
+        this.send_material(context, gpu_addresses, material);
+        this.send_gpu_state(context, gpu_addresses, gpu_state, model_transform);
     }
 }

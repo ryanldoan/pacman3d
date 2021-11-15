@@ -1,7 +1,7 @@
 import {defs, tiny} from './examples/common.js';
 
 import {Transforms_Sandbox} from "./examples/transforms-sandbox.js"
-import {Demo2} from "./demo2.js"
+import {Collision_Demo} from "./examples/collisions-demo.js"
 import {Demo3} from './demo3.js';
 import {Obj_File_Demo} from "./examples/obj-file-demo.js"
 
@@ -23,8 +23,8 @@ const Minimal_Webgl_Demo = defs.Minimal_Webgl_Demo;
 
 Object.assign(defs,
         {Transforms_Sandbox},
-        {Demo2: Demo2},
         {Demo3: Demo3},
+        {Collision_Demo: Collision_Demo},
         {Obj_File_Demo: Obj_File_Demo}
         );
 
