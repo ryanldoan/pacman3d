@@ -1,24 +1,56 @@
 import {defs, tiny} from './examples/common.js';
 
 const {
-    Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene,
+    Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture
 } = tiny;
 const {Cube, Axis_Arrows, Textured_Phong, Phong_Shader, Basic_Shader, Subdivision_Sphere} = defs
 
+import {Shape_From_File} from './examples/obj-file-demo.js'
+
 
 class Maze_Runner {
-    constructor(model_info, loc_transform, speed=1, abs_dir='f', dir='s'){
+    constructor(model_info, loc_transform, rm=Mat4.identity(), maze_scale, speed=1, abs_dir='f', dir='s'){
         this.model_info = model_info;
         this.dir = dir;
         this.abs_dir = abs_dir;
         this.speed = speed;
+        this.upright_R = rm;
+        this.maze_scale = maze_scale;
         this.model_transform = Mat4.rotation(this.getAngle(this.abs_dir),0,1,0).times(loc_transform);
     }
+    
+    check_bounds(follow){
+        //check if out of bounds
+        const x = this.model_transform[0][3];
+        const z = this.model_transform[2][3];
+        const side_to_center = 13.5*this.maze_scale;    
+        if (Math.abs(x) > side_to_center){
+            this.model_transform = Mat4.identity().times(Mat4.translation(-Math.trunc(x), 0, z));
+            if (follow)
+                this.updateMatrix(this.getRotationMatrix());
+        }
 
-    move(follow){
+        //TEMPORARY before collision detection
+        const top_to_center = -23.25*this.maze_scale;
+        const bottom_to_center = 7.25*this.maze_scale;
+        if (z > bottom_to_center){
+            this.model_transform = Mat4.identity().times(Mat4.translation(x, 0, top_to_center));
+            if (follow)
+                this.updateMatrix(this.getRotationMatrix());
+        }else if (z < top_to_center){
+            this.model_transform = Mat4.identity().times(Mat4.translation(x, 0, bottom_to_center));
+            if (follow)
+                this.updateMatrix(this.getRotationMatrix());
+        }
+    }
+
+    move(follow, dt){
         const move = -0.1-this.speed*0.05;
         let T = this.getTransMatrix(move, follow);
         this.updateMatrix(T);
+
+        this.check_bounds(follow);
+
         return this.model_transform;
     }
 
@@ -118,26 +150,58 @@ class Maze_Runner {
 }
 
 class PacMan extends Maze_Runner {
-    constructor(speed=1){
+    constructor(maze_scale, speed=1){
         const model_info = {
-            shape: new defs.Subdivision_Sphere(4),
+            shape: new defs.Subdivision_Sphere(4),//new Shape_From_File("assets/pacman.obj"),
             material: new Material(new defs.Phong_Shader(),
                 {ambient: 0.4, diffusivity: 0.6, color: hex_color("#FFFF00")}),
         }
         //PacMan starts at world origin, begin facing forward
-        super(model_info, Mat4.identity(), speed, 'f');
+        super(model_info, Mat4.identity(), Mat4.identity(), maze_scale, speed, 'f');
     }
 }
 
 class Ghost extends Maze_Runner {
-    constructor(loc_transform, speed=1){
+    constructor(loc_transform, maze_scale, speed=1){
         const model_info = {
-            shape: new defs.Subdivision_Sphere(3),
-            material: new Material(new Gouraud_Shader(),
-                {ambient: 1, specularity: 1, diffusivity: 1, color: hex_color("#FF0000")}),
+            shape: new Shape_From_File("assets/boo.obj"),
+            material: new Material( new defs.Textured_Phong(),
+                {color: hex_color("#000000"), ambient: 0.8, texture: new Texture("assets/boo_face.png"),}),
         }
         //Ghost starts at world origin, begin facing forward
-        super(model_info, loc_transform, speed, 'f');
+        super(model_info, loc_transform, Mat4.rotation(Math.PI,0,1,0).times(Mat4.rotation(-Math.PI/6,1,0,0)), maze_scale, speed, 's');
+        this.turn_dt = 2;
+    }
+
+    move(follow, dt){
+        let turn_t = 2+Math.random()*4;
+        if (this.turn_dt > turn_t){
+            this.turn_dt = 0
+            let dir = Math.floor(Math.random()*4);
+            switch(dir){
+                case 0:
+                    this.dir = 'f';
+                    break;
+                case 1:
+                    this.dir = 'l';
+                    break;
+                case 2:
+                    this.dir = 'r';
+                    break;
+                case 3:
+                    this.dir = 'b';
+                    break;
+                default:
+                    break;
+            }
+            //this.dir = 's'; // DELETE
+            console.log(this.dir);
+        }else{
+            this.turn_dt += dt;
+            //console.log(this.turn_dt);
+        }
+
+        super.move(false, dt);
     }
 }
 
@@ -156,7 +220,7 @@ export class Demo3 extends Scene {
         // *** Materials
         this.materials = {
             wall: new Material(new defs.Phong_Shader(),
-                {ambient: 0.4, diffusivity: 0.6, color: hex_color("#4444CC")}),
+                {ambient: 0.4, diffusivity: 0.6, specularity: 0.7, color: hex_color("#4444CC")}),
             pacman: new Material(new defs.Phong_Shader(),
                 {ambient: 0.4, diffusivity: 0.6, color: hex_color("#FFFF00")}),
             ghost: new Material(new Gouraud_Shader(),
@@ -167,41 +231,36 @@ export class Demo3 extends Scene {
         this.scale = 2;
         const speed = this.scale;
 
-        this.pacman = new PacMan(speed);
-        this.ghost1 = new Ghost(Mat4.translation(-2*this.scale,0,-9*this.scale), speed);
-        this.ghost2 = new Ghost(Mat4.translation(0,0,-9*this.scale), speed);
-        this.ghost3 = new Ghost(Mat4.translation(2*this.scale,0,-9*this.scale), speed);
+        this.pacman = new PacMan(this.scale, speed);
+        this.ghost1 = new Ghost(Mat4.translation(0,0,-9.25*this.scale), this.scale, speed);
+        this.ghost2 = new Ghost(Mat4.translation(-2*this.scale,0,-9.25*this.scale), this.scale, speed);
+        this.ghost3 = new Ghost(Mat4.translation(2*this.scale,0,-9.25*this.scale), this.scale, speed);
         this.alive = [this.pacman, this.ghost1, this.ghost2, this.ghost3];
 
         this.pov1_matrix = Mat4.translation(0,3,4).times(Mat4.rotation(-Math.PI/12,1,0,0));
-        this.pov3 = Mat4.look_at(vec3(0, 50*this.scale, 10*this.scale), vec3(0, 0, -5*this.scale), vec3(0, 0, -1));;
+        this.pov3 = Mat4.look_at(vec3(0, 50*this.scale, 10*this.scale), vec3(0, 0, -5*this.scale), vec3(0, 0, -1));
     }
 
     make_control_panel() {
         // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements.
         this.key_triggered_button("Forward", ["u"], () => {
-            for (let i = 0; i < this.alive.length; ++i)
-                (this.alive[i]).dir = 'f';
+            this.pacman.dir = 'f';
         });
         this.new_line();
         this.key_triggered_button("Right", ["k"], () => {
-            for (let i = 0; i < this.alive.length; ++i)
-                (this.alive[i]).dir = 'r';
+            this.pacman.dir = 'r';
         });
         //this.new_line();
         this.key_triggered_button("Left", ["h"], () => {
-            for (let i = 0; i < this.alive.length; ++i)
-                (this.alive[i]).dir = 'l';
+            this.pacman.dir = 'l';
         });
         this.new_line();
         this.key_triggered_button("Backward", ["j"], () => {
-            for (let i = 0; i < this.alive.length; ++i)
-                (this.alive[i]).dir = 'b';
+            this.pacman.dir = 'b';
         });
         this.new_line();
         this.key_triggered_button("Stop", ["m"], () => {
-            for (let i = 0; i < this.alive.length; ++i)
-                (this.alive[i]).dir = 's';
+            this.pacman.dir = 's';
         });
         this.new_line(); this.new_line();
         this.key_triggered_button("Camera POV", ["c"], () => {
@@ -224,25 +283,6 @@ export class Demo3 extends Scene {
         });
     }
 
-    render_scene(context, program_state, shadow_pass, draw_light_source=false, draw_shadow=false) {
-        // shadow_pass: true if this is the second pass that draw the shadow.
-        // draw_light_source: true if we want to draw the light source.
-        // draw_shadow: true if we want to draw the shadow
-
-        let light_position = this.light_position;
-        let light_color = this.light_color;
-        const t = program_state.animation_time;
-
-        program_state.draw_shadow = draw_shadow;
-
-        if (draw_light_source && shadow_pass) {
-            this.shapes.sphere.draw(context, program_state,
-                Mat4.translation(light_position[0], light_position[1], light_position[2]).times(Mat4.scale(.5,.5,.5)),
-                this.light_src.override({color: light_color}));
-        }
-        
-    }
-
     display(context, program_state) {
         // display():  Called once per frame of animation.
 
@@ -255,6 +295,8 @@ export class Demo3 extends Scene {
             if (this.follow)
                 initial_camera_location = Mat4.inverse((this.pacman.model_transform).times(this.pov1_matrix));
             else initial_camera_location = this.pov3;
+            
+            initial_camera_location = Mat4.look_at(vec3(0, 3*this.scale, -13*this.scale), vec3(0, 0, -7*this.scale), vec3(0, 0, 1));//DELETE
 
             program_state.set_camera(initial_camera_location);
         }
@@ -264,24 +306,30 @@ export class Demo3 extends Scene {
 
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
 
-        const light_position = vec4(0, 50*this.scale, -15*this.scale, 1);
+        const light_positions = [vec4(0, 50*this.scale, -10*this.scale, 1), 
+                                 vec4(0, 3, -6*this.scale, 1)];
+        const white = color(1, 1, 1, 1);
+        //const red = color(1, 0, 0, 1);
+        const bright = 5000*this.scale**2;
+        //const dim = 10*this.scale**2;
 
         // The parameters of the Light are: position, color, size
-        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 5000*this.scale**2)];
+        program_state.lights = [new Light(light_positions[0], white, bright)];
 
         this.make_walls(context, program_state, this.scale);
-
+        //const ghost_colors = ["FF8888","",""]
+        let dir_R = Mat4.identity();
         for (let i = 0; i < this.alive.length; ++i) {
             const runner = this.alive[i];
-            runner.move(this.follow);
-            runner.model_info.shape.draw(context, program_state, runner.model_transform, runner.model_info.material);
+            if (i > 0 && this.pacman.dir==='s'){
+                runner.dir = 's';
+                runner.move(this.follow, 0);
+            }else
+                runner.move(this.follow, dt);
+            if (!this.follow || i > 0)
+                dir_R = runner.getRotationMatrix();
+            runner.model_info.shape.draw(context, program_state, runner.model_transform.times(dir_R).times(runner.upright_R), runner.model_info.material);
         }
-        //this.pacman.move(this.follow);
-        //this.ghost.move(this.follow);
-
-        //this.shapes.pacman.draw(context, program_state, this.pacman.model_transform, this.materials.pacman);
-        //this.shapes.ghost.draw(context, program_state, this.ghost.model_transform, this.materials.ghost);
-
 
         let desired;
         if (this.follow)
@@ -290,7 +338,7 @@ export class Demo3 extends Scene {
             desired = this.pov3;    //Mat4.inverse((this.pacman.model_transform).times(Mat4.translation(0,50,10)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
             
         desired = desired.map((x,i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.15));
-        program_state.set_camera(desired);
+       // program_state.set_camera(desired);
     }
 
     make_wall(context, program_state, loc, length, maze_scale=1, vert=false, width=1){
