@@ -214,7 +214,8 @@ export class Demo3 extends Scene {
         this.shapes = {
             cube: new Cube(),
             pacman: new defs.Subdivision_Sphere(4),
-            ghost: new defs.Subdivision_Sphere(2)
+            ghost: new defs.Subdivision_Sphere(2),
+            pellet: new defs.Subdivision_Sphere(4),
         };
 
         // *** Materials
@@ -225,6 +226,8 @@ export class Demo3 extends Scene {
                 {ambient: 0.4, diffusivity: 0.6, color: hex_color("#FFFF00")}),
             ghost: new Material(new Gouraud_Shader(),
                 {ambient: 0.4, diffusivity: 0.6, color: hex_color("#FF0000")}),
+            pellet: new Material(new defs.Phong_Shader(),
+                {ambient: 0.4, diffusivity: 0.6, color: hex_color("#fff2c7")}),
         }
 
         this.follow = true;
@@ -338,7 +341,12 @@ export class Demo3 extends Scene {
             desired = this.pov3;    //Mat4.inverse((this.pacman.model_transform).times(Mat4.translation(0,50,10)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
             
         desired = desired.map((x,i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.15));
-       // program_state.set_camera(desired);
+        program_state.set_camera(desired);
+    }
+    
+    make_pellets(context, program_state) {
+        let model_transform = Mat4.identity().times(Mat4.scale(0.5,0.5,0.5));
+        this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
     }
 
     make_wall(context, program_state, loc, length, maze_scale=1, vert=false, width=1){
