@@ -214,13 +214,16 @@ export class Demo3 extends Scene {
         this.shapes = {
             cube: new Cube(),
             pacman: new defs.Subdivision_Sphere(4),
-            ghost: new defs.Subdivision_Sphere(2)
+            ghost: new defs.Subdivision_Sphere(2),
+            pellet: new defs.Subdivision_Sphere(4),
         };
 
         // *** Materials
         this.materials = {
             wall: new Material(new defs.Phong_Shader(),
                 {ambient: 0.4, diffusivity: 0.6, specularity: 0.7, color: hex_color("#4444CC")}),
+            pellet: new Material(new defs.Phong_Shader(),
+                {ambient: 1, color: hex_color("#fff2c7")}),
         }
 
         this.follow = true;
@@ -313,6 +316,7 @@ export class Demo3 extends Scene {
         program_state.lights = [new Light(light_positions[0], white, bright)];
 
         this.make_walls(context, program_state, this.scale);
+        this.make_pellets(context, program_state);
         //const ghost_colors = ["FF8888","",""]
         let dir_R = Mat4.identity();
         for (let i = 0; i < this.alive.length; ++i) {
@@ -335,6 +339,77 @@ export class Demo3 extends Scene {
             
         desired = desired.map((x,i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.15));
         program_state.set_camera(desired);
+    }
+    
+    make_pellets(context, program_state) {
+        // Pellet size is 1/2 of regular sphere
+        let pellet_transform = Mat4.identity().times(Mat4.scale(0.5,0.5,0.5));
+
+        // The row of pellets starting at pacman's origin
+        for (let i = 0; i <= 30; i++) {
+            if (i % 5 === 0 && i !== 0) {
+
+                // Positive x-axis
+                let model_transform = pellet_transform.times(Mat4.translation(i,0,0));
+                this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
+                
+                // Negative x-axis (mirror in this case since equal length)
+                let model_transform2 = pellet_transform.times(Mat4.translation(-i,0,0));
+                this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
+            }
+        }
+
+        // The long vertical from pacman's origin
+        for (let i = 0; i <= 90; i++) {
+            if (i % 5 === 0 && i !== 0) {
+
+                // Positive x-axis
+                let model_transform = pellet_transform.times(Mat4.translation(30,0,-i));
+                this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
+                
+                // Negative x-axis (mirror in this case since equal length)
+                let model_transform2 = pellet_transform.times(Mat4.translation(-30,0,-i));
+                this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
+                
+                // To fill in the small gap in the positive z-axis
+                if (i <= 15) {
+                    let model_transform3 = pellet_transform.times(Mat4.translation(-30,0,i));
+                    this.shapes.pellet.draw(context, program_state, model_transform3, this.materials.pellet);
+
+                    let model_transform4 = pellet_transform.times(Mat4.translation(30,0,i));
+                    this.shapes.pellet.draw(context, program_state, model_transform4, this.materials.pellet);
+                }
+            }
+        }
+
+        // The long horizontal at the bottom
+        for (let i = 0; i <= 50; i++) {
+            if (i % 5 === 0) {
+
+                // Positive x-axis
+                let model_transform = pellet_transform.times(Mat4.translation(i,0,24));
+                this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
+                
+                // Negative x-axis (mirror in this case since equal length)
+                let model_transform2 = pellet_transform.times(Mat4.translation(-i,0,24));
+                this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
+            }
+        }
+
+        // The long horizontal at the top
+        for (let i = 0; i <= 50; i++) {
+            if (i % 5 === 0 && i !== 30) {
+
+                // Positive x-axis
+                let model_transform = pellet_transform.times(Mat4.translation(i,0,-72));
+                this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
+                
+                // Negative x-axis (mirror in this case since equal length)
+                let model_transform2 = pellet_transform.times(Mat4.translation(-i,0,-72));
+                this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
+            }
+        }
+>>>>>>> b33a447209ab7941b08fd85364aafb91b2766c32
     }
 
     make_wall(context, program_state, loc, length, maze_scale=1, vert=false, width=1){
