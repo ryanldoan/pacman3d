@@ -165,8 +165,8 @@ class Ghost extends Maze_Runner {
     constructor(loc_transform, maze_scale, speed=1){
         const model_info = {
             shape: new Shape_From_File("assets/boo.obj"),
-            material: new Material( new defs.Textured_Phong(),
-                {color: hex_color("#000000"), ambient: 0.8, texture: new Texture("assets/boo_face.png"),}),
+            material: new Material( new defs.Phong_Shader(),
+                {ambient: 0.7, color: hex_color("#CCC0C0")}),
         }
         //Ghost starts at world origin, begin facing forward
         super(model_info, loc_transform, Mat4.rotation(Math.PI,0,1,0).times(Mat4.rotation(-Math.PI/6,1,0,0)), maze_scale, speed, 's');
@@ -195,7 +195,7 @@ class Ghost extends Maze_Runner {
                     break;
             }
             //this.dir = 's'; // DELETE
-            console.log(this.dir);
+            //console.log(this.dir);
         }else{
             this.turn_dt += dt;
             //console.log(this.turn_dt);
@@ -221,10 +221,6 @@ export class Demo3 extends Scene {
         this.materials = {
             wall: new Material(new defs.Phong_Shader(),
                 {ambient: 0.4, diffusivity: 0.6, specularity: 0.7, color: hex_color("#4444CC")}),
-            pacman: new Material(new defs.Phong_Shader(),
-                {ambient: 0.4, diffusivity: 0.6, color: hex_color("#FFFF00")}),
-            ghost: new Material(new Gouraud_Shader(),
-                {ambient: 0.4, diffusivity: 0.6, color: hex_color("#FF0000")}),
         }
 
         this.follow = true;
@@ -296,7 +292,7 @@ export class Demo3 extends Scene {
                 initial_camera_location = Mat4.inverse((this.pacman.model_transform).times(this.pov1_matrix));
             else initial_camera_location = this.pov3;
             
-            initial_camera_location = Mat4.look_at(vec3(0, 3*this.scale, -13*this.scale), vec3(0, 0, -7*this.scale), vec3(0, 0, 1));//DELETE
+            //initial_camera_location = Mat4.look_at(vec3(0, 3*this.scale, -13*this.scale), vec3(0, 0, -7*this.scale), vec3(0, 0, 1));//DELETE: to look at ghost faces
 
             program_state.set_camera(initial_camera_location);
         }
@@ -338,7 +334,7 @@ export class Demo3 extends Scene {
             desired = this.pov3;    //Mat4.inverse((this.pacman.model_transform).times(Mat4.translation(0,50,10)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
             
         desired = desired.map((x,i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.15));
-       // program_state.set_camera(desired);
+        program_state.set_camera(desired);
     }
 
     make_wall(context, program_state, loc, length, maze_scale=1, vert=false, width=1){
