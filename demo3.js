@@ -226,11 +226,22 @@ export class Demo3 extends Scene {
                 {ambient: 0.4, color: hex_color("#fff2c7")}),
             invincibility_powerup: new Material(new defs.Phong_Shader(),
                 {ambient: 0.5, color: hex_color("#fff2c7")}),
+            speed_powerup: new Material(new defs.Phong_Shader(),
+                {ambient: 0.3, diffusivity: 1, specularity: 1, color: hex_color("#00FF00")}),
         }
 
         this.follow = true;
         this.scale = 2;
         const speed = this.scale;
+
+        this.speed_powerup = false;
+        this.speed_powerup_pos1 = false;
+        this.speed_powerup_pos2 = false;
+        this.speed_powerup_pos3 = false;
+        this.speed_powerup_pos4 = false;
+        this.scale_factor = 1;
+        this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
+
 
         this.pacman = new PacMan(this.scale, speed);
         this.ghost1 = new Ghost(Mat4.translation(0,0,-9.25*this.scale), this.scale, speed);
@@ -320,6 +331,12 @@ export class Demo3 extends Scene {
         this.make_walls(context, program_state, this.scale);
         this.make_pellets(context, program_state);
         this.make_invincibility_powerup(context, program_state);
+        
+
+        // Speed Powerup Generation
+        if (this.speed_powerup === false)
+            this.speed_powerup_pos_checker();
+        this.make_speed_powerup(context, program_state);
 
         //const ghost_colors = ["FF8888","",""]
         let dir_R = Mat4.identity();
@@ -345,6 +362,87 @@ export class Demo3 extends Scene {
         program_state.set_camera(desired);
     }
     
+    speed_powerup_pos_checker(number) {
+        if (this.speed_pos_random_number === 1) {
+            this.speed_powerup_pos1 = true;
+        } else if (this.speed_pos_random_number === 2) {
+            this.speed_powerup_pos2 = true;
+        } else if (this.speed_pos_random_number === 3) {
+            this.speed_powerup_pos3 = true;
+        } else if (this.speed_pos_random_number === 4) {
+            this.speed_powerup_pos4 = true;
+        }
+        this.speed_powerup = true;
+    }
+
+    make_speed_powerup(context, program_state) {
+        let model_transform = Mat4.identity();
+        if (this.speed_powerup_pos1 === true) {
+            this.scale_factor -= .008;
+            let speed_transform1 = model_transform.times(Mat4.translation(-3,0,9)).times(Mat4.scale(this.scale_factor, this.scale_factor, this.scale_factor));
+            
+            if (this.scale_factor > .4) 
+                this.shapes.cube.draw(context,program_state, speed_transform1, this.materials.speed_powerup);
+            else
+                this.shapes.cube.draw(context,program_state, speed_transform1, this.materials.speed_powerup.override({color: hex_color("FF0000")}));
+
+            if (this.scale_factor < 0) {
+                this.speed_powerup_pos1 = false;
+                this.speed_powerup = false;
+                this.scale_factor = 1;
+                this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
+            }
+
+        } else if (this.speed_powerup_pos2 === true) {
+            this.scale_factor -= .008;
+            let speed_transform2 = model_transform.times(Mat4.translation(3,0,9)).times(Mat4.scale(this.scale_factor, this.scale_factor, this.scale_factor));;
+
+            if (this.scale_factor > .4) 
+                this.shapes.cube.draw(context,program_state, speed_transform2, this.materials.speed_powerup);
+            else
+                this.shapes.cube.draw(context,program_state, speed_transform2, this.materials.speed_powerup.override({color: hex_color("FF0000")}));
+
+            if (this.scale_factor < 0) {
+                this.speed_powerup_pos2 = false;
+                this.speed_powerup = false;
+                this.scale_factor = 1;
+                this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
+            }
+            
+        } else if (this.speed_powerup_pos3 === true) {
+            this.scale_factor -= .008;
+            let speed_transform3 = model_transform.times(Mat4.translation(3,0,-40)).times(Mat4.scale(this.scale_factor, this.scale_factor, this.scale_factor));;
+            
+            if (this.scale_factor > .4) 
+                this.shapes.cube.draw(context,program_state, speed_transform3, this.materials.speed_powerup);
+            else
+                this.shapes.cube.draw(context,program_state, speed_transform3, this.materials.speed_powerup.override({color: hex_color("FF0000")}));
+
+            if (this.scale_factor < 0) {
+                this.speed_powerup_pos3 = false;
+                this.speed_powerup = false;
+                this.scale_factor = 1;
+                this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
+            }
+            
+        } else if (this.speed_powerup_pos4 === true) {
+            this.scale_factor -= .008;
+            let speed_transform4 = model_transform.times(Mat4.translation(-3,0,-40)).times(Mat4.scale(this.scale_factor, this.scale_factor, this.scale_factor));;
+            
+            if (this.scale_factor > .4) 
+                this.shapes.cube.draw(context,program_state, speed_transform4, this.materials.speed_powerup);
+            else
+                this.shapes.cube.draw(context,program_state, speed_transform4, this.materials.speed_powerup.override({color: hex_color("FF0000")}));
+
+            if (this.scale_factor < 0) {
+                this.speed_powerup_pos4 = false;
+                this.speed_powerup = false;
+                this.scale_factor = 1;
+                this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
+            }
+        }
+    }
+     
     make_invincibility_powerup(context, program_state) {
         let invincibility_powerup = Mat4.identity();
                 
@@ -606,8 +704,6 @@ export class Demo3 extends Scene {
 
         let single_transform10 = pellet_transform.times(Mat4.translation(-20,0,-66));
         this.shapes.pellet.draw(context, program_state, single_transform10, this.materials.pellet);
-
-
     }
 
     make_wall(context, program_state, loc, length, maze_scale=1, vert=false, width=1){
