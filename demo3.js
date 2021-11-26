@@ -223,7 +223,7 @@ export class Demo3 extends Scene {
             wall: new Material(new defs.Phong_Shader(),
                 {ambient: 0.4, diffusivity: 0.6, specularity: 0.7, color: hex_color("#4444CC")}),
             pellet: new Material(new defs.Phong_Shader(),
-                {ambient: 0.4, color: hex_color("#fff2c7")}),
+                {ambient: 0.8, color: hex_color("#fff2c7")}),
             invincibility_powerup: new Material(new defs.Phong_Shader(),
                 {ambient: 0.5, color: hex_color("#fff2c7")}),
             speed_powerup: new Material(new defs.Phong_Shader(),
@@ -241,7 +241,6 @@ export class Demo3 extends Scene {
         this.speed_powerup_pos4 = false;
         this.scale_factor = 1;
         this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
-
 
         this.pacman = new PacMan(this.scale, speed);
         this.ghost1 = new Ghost(Mat4.translation(0,0,-9.25*this.scale), this.scale, speed);
