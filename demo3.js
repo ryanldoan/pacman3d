@@ -409,7 +409,6 @@ export class Demo3 extends Scene {
                 this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
             }
         }
->>>>>>> b33a447209ab7941b08fd85364aafb91b2766c32
     }
 
     make_wall(context, program_state, loc, length, maze_scale=1, vert=false, width=1){
