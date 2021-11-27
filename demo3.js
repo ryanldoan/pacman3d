@@ -154,7 +154,7 @@ class PacMan extends Maze_Runner {
         const model_info = {
             shape: new defs.Subdivision_Sphere(4),//new Shape_From_File("assets/pacman.obj"),
             material: new Material(new defs.Phong_Shader(),
-                {ambient: 0.4, diffusivity: 0.6, color: hex_color("#FFFF00")}),
+                {ambient: 0.4, diffusivity: 0.8, color: hex_color("#FFFF00")}),
         }
         //PacMan starts at world origin, begin facing forward
         super(model_info, Mat4.identity(), Mat4.identity(), maze_scale, speed, 'f');
@@ -223,12 +223,24 @@ export class Demo3 extends Scene {
             wall: new Material(new defs.Phong_Shader(),
                 {ambient: 0.4, diffusivity: 0.6, specularity: 0.7, color: hex_color("#4444CC")}),
             pellet: new Material(new defs.Phong_Shader(),
-                {ambient: 1, color: hex_color("#fff2c7")}),
+                {ambient: 0.8, color: hex_color("#fff2c7")}),
+            invincibility_powerup: new Material(new defs.Phong_Shader(),
+                {ambient: 0.5, color: hex_color("#fff2c7")}),
+            speed_powerup: new Material(new defs.Phong_Shader(),
+                {ambient: 0.3, diffusivity: 1, specularity: 1, color: hex_color("#00FF00")}),
         }
 
         this.follow = true;
-        this.scale = 1;
+        this.scale = 2;
         const speed = this.scale;
+
+        this.speed_powerup = false;
+        this.speed_powerup_pos1 = false;
+        this.speed_powerup_pos2 = false;
+        this.speed_powerup_pos3 = false;
+        this.speed_powerup_pos4 = false;
+        this.scale_factor = 1;
+        this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
 
         this.pacman = new PacMan(this.scale, speed);
         this.ghost1 = new Ghost(Mat4.translation(0,0,-9.25*this.scale), this.scale, speed);
@@ -315,6 +327,13 @@ export class Demo3 extends Scene {
 
         this.make_walls(context, program_state, this.scale);
         this.make_pellets(context, program_state, this.scale);
+        this.make_invincibility_powerup(context, program_state, this.scale);
+        
+        // Speed Powerup Generation
+        if (this.speed_powerup === false)
+            this.speed_powerup_pos_checker();
+        this.make_speed_powerup(context, program_state, this.scale);
+        
         //const ghost_colors = ["FF8888","",""]
         let dir_R = Mat4.identity();
         for (let i = 0; i < this.alive.length; ++i) {
@@ -340,14 +359,117 @@ export class Demo3 extends Scene {
         program_state.set_camera(desired);
     }
     
+    speed_powerup_pos_checker(number) {
+        if (this.speed_pos_random_number === 1) {
+            this.speed_powerup_pos1 = true;
+        } else if (this.speed_pos_random_number === 2) {
+            this.speed_powerup_pos2 = true;
+        } else if (this.speed_pos_random_number === 3) {
+            this.speed_powerup_pos3 = true;
+        } else if (this.speed_pos_random_number === 4) {
+            this.speed_powerup_pos4 = true;
+        }
+        this.speed_powerup = true;
+    }
+
+    make_speed_powerup(context, program_state, scale) {
+        let model_transform = Mat4.identity();
+        if (this.speed_powerup_pos1 === true) {
+            this.scale_factor -= .008;
+            let speed_transform1 = model_transform.times(Mat4.translation(-1.5*scale,0,4.5*scale)).times(Mat4.scale(this.scale_factor, this.scale_factor, this.scale_factor));
+            
+            if (this.scale_factor > .4) 
+                this.shapes.cube.draw(context,program_state, speed_transform1, this.materials.speed_powerup);
+            else
+                this.shapes.cube.draw(context,program_state, speed_transform1, this.materials.speed_powerup.override({color: hex_color("FF0000")}));
+
+            if (this.scale_factor < 0) {
+                this.speed_powerup_pos1 = false;
+                this.speed_powerup = false;
+                this.scale_factor = 1;
+                this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
+            }
+
+        } else if (this.speed_powerup_pos2 === true) {
+            this.scale_factor -= .008;
+            let speed_transform2 = model_transform.times(Mat4.translation(1.5*scale,0,4.5*scale)).times(Mat4.scale(this.scale_factor, this.scale_factor, this.scale_factor));;
+
+            if (this.scale_factor > .4) 
+                this.shapes.cube.draw(context,program_state, speed_transform2, this.materials.speed_powerup);
+            else
+                this.shapes.cube.draw(context,program_state, speed_transform2, this.materials.speed_powerup.override({color: hex_color("FF0000")}));
+
+            if (this.scale_factor < 0) {
+                this.speed_powerup_pos2 = false;
+                this.speed_powerup = false;
+                this.scale_factor = 1;
+                this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
+            }
+            
+        } else if (this.speed_powerup_pos3 === true) {
+            this.scale_factor -= .008;
+            let speed_transform3 = model_transform.times(Mat4.translation(1.5*scale,0,-20*scale)).times(Mat4.scale(this.scale_factor, this.scale_factor, this.scale_factor));;
+            
+            if (this.scale_factor > .4) 
+                this.shapes.cube.draw(context,program_state, speed_transform3, this.materials.speed_powerup);
+            else
+                this.shapes.cube.draw(context,program_state, speed_transform3, this.materials.speed_powerup.override({color: hex_color("FF0000")}));
+
+            if (this.scale_factor < 0) {
+                this.speed_powerup_pos3 = false;
+                this.speed_powerup = false;
+                this.scale_factor = 1;
+                this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
+            }
+            
+        } else if (this.speed_powerup_pos4 === true) {
+            this.scale_factor -= .008;
+            let speed_transform4 = model_transform.times(Mat4.translation(-1.5*scale,0,-20*scale)).times(Mat4.scale(this.scale_factor, this.scale_factor, this.scale_factor));;
+            
+            if (this.scale_factor > .4) 
+                this.shapes.cube.draw(context,program_state, speed_transform4, this.materials.speed_powerup);
+            else
+                this.shapes.cube.draw(context,program_state, speed_transform4, this.materials.speed_powerup.override({color: hex_color("FF0000")}));
+
+            if (this.scale_factor < 0) {
+                this.speed_powerup_pos4 = false;
+                this.speed_powerup = false;
+                this.scale_factor = 1;
+                this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
+            }
+        }
+    }
+     
+    make_invincibility_powerup(context, program_state, scale) {
+        const size = 0.5*scale;
+        const x_width = 12.5*scale;
+        let invincibility_powerup = Mat4.scale(size,size,size);
+                
+        // Top invincibility powerups
+        let powerup_transform = Mat4.translation(x_width,0,0).times(invincibility_powerup);
+        this.shapes.pellet.draw(context,program_state, powerup_transform, this.materials.invincibility_powerup);
+
+        let powerup_transform2 = Mat4.translation(-x_width,0,0).times(invincibility_powerup);
+        this.shapes.pellet.draw(context,program_state, powerup_transform2, this.materials.invincibility_powerup);
+
+        // Bottom invincibility powerups
+        let powerup_transform3 = Mat4.translation(x_width,0,-20*scale).times(invincibility_powerup);
+        this.shapes.pellet.draw(context,program_state, powerup_transform3, this.materials.invincibility_powerup);
+
+        let powerup_transform4 = Mat4.translation(-x_width,0,-20*scale).times(invincibility_powerup);
+        this.shapes.pellet.draw(context,program_state, powerup_transform4, this.materials.invincibility_powerup);
+    }
+
     make_pellets(context, program_state, scale) {
         // Pellet size is 1/2 of regular sphere
-        this.scale = 1; //DELETE FIRST
         const size = 0.2*scale;
         let pellet_transform = Mat4.identity().times(Mat4.scale(size,size,size));
-        const dist = 1.5*scale;
+        const x_dist = 0.5*scale;
+        const x_width = 12.5*scale;
+
         // The row of pellets starting at pacman's origin
-        for (let i = 1.5*scale; i <= 7*scale; i+=scale) {
+        for (let i = x_dist+scale; i <= x_width-scale; i+=scale) {
+            if (i == 7.5*scale || i == 8.5*scale || i == 9.5*scale) continue;
             // Positive x-axis
             let model_transform = Mat4.translation(i,0,0).times(pellet_transform);
             this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
@@ -359,17 +481,17 @@ export class Demo3 extends Scene {
 
         // The long vertical from pacman's origin
         for (let i = -3*scale; i <= 21*scale; i+=scale) {
-                // Positive x-axis
-                let model_transform = Mat4.translation(7.5*scale,0,-i).times(pellet_transform);
-                this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-                
-                // Negative x-axis (mirror in this case since equal length)
-                let model_transform2 = Mat4.translation(-7.5*scale,0,-i).times(pellet_transform);
-                this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
+            // Positive x-axis
+            let model_transform = Mat4.translation(7.5*scale,0,-i).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
+
+            // Negative x-axis (mirror in this case since equal length)
+            let model_transform2 = Mat4.translation(-7.5*scale,0,-i).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
         }
 
         // The long horizontal at the bottom
-        for (let i = 0.5*scale; i <= 13*scale; i+=scale) {
+        for (let i = 0.5*scale; i <= x_width; i+=scale) {
             // Positive x-axis
             let model_transform = Mat4.translation(i,0,6*scale).times(pellet_transform);
             this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
@@ -379,17 +501,134 @@ export class Demo3 extends Scene {
             this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
         }
 
-        // The long horizontal at the top
-        for (let i = 0.5*scale; i <= 13*scale; i+=scale) {
-            if (i !== 7.5*scale) {
-                // Positive x-axis
-                let model_transform = Mat4.translation(i,0,-18*scale).times(pellet_transform);
-                this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-                
-                // Negative x-axis (mirror in this case since equal length)
-                let model_transform2 = Mat4.translation(-i,0,-18*scale).times(pellet_transform);
-                this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
-            }
+        // The long horizontal above ghosts top
+        for (let i = x_dist; i <= x_width; i+=scale) {
+            if (i == 7.5*scale) continue;
+            // Positive x-axis
+            let model_transform = Mat4.translation(i,0,-18*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
+
+            // Negative x-axis (mirror in this case since equal length)
+            let model_transform2 = Mat4.translation(-i,0,-18*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
+        }
+
+        // The topmost long horizontal
+        for (let i = x_dist+scale; i <= x_width; i+=scale) {
+            // Positive x-axis
+            let model_transform = Mat4.translation(i,0,-22*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
+
+            // Negative x-axis (mirror in this case since equal length)
+            let model_transform2 = Mat4.translation(-i,0,-22*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
+        }
+
+        // The horizontal on the bottom of ghosts
+        for (let i = x_dist+scale; i <= x_width; i+=scale) {
+            if (i == 7.5*scale) continue;
+            // Positive x-axis
+            let model_transform = Mat4.translation(i,0,-3*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
+
+            // Negative x-axis (mirror in this case since equal length)
+            let model_transform2 = Mat4.translation(-i,0,-3*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
+        }
+
+        // The top close to center long horizontal with the vertical wall in between
+        for (let i = x_dist+scale; i <= x_width; i+=scale) {
+            if (i == 7.5*scale || i == 5.5*scale || i == 6.5*scale) continue;
+            // Positive x-axis
+            let model_transform = Mat4.translation(i,0,-15*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
+
+            // Negative x-axis (mirror in this case since equal length)
+            let model_transform2 = Mat4.translation(-i,0,-15*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);           
+        }
+
+        // The bottom middle long horizontal with the vertical wall in between
+        for (let i = x_dist+scale; i <= x_width; i+=scale) {
+            if (i == 7.5*scale || i == 5.5*scale || i == 6.5*scale) continue;
+            // Positive x-axis
+            let model_transform = Mat4.translation(i,0,3*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
+
+            // Negative x-axis (mirror in this case since equal length)
+            let model_transform2 = Mat4.translation(-i,0,3*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);          
+        }
+
+        // Side verticals at top side
+        for (let i = 0; i < 6*scale; i+=scale) {
+            if (i == 2*scale || i == 4*scale) continue;
+            // Positive x-axis
+            let model_transform = Mat4.translation(x_width,0,-i-16*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
+
+            // Negative x-axis (mirror in this case since equal length)
+            let model_transform2 = Mat4.translation(-x_width,0,-i-16*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
+        }
+
+        // Side verticals at top middle
+        for (let i = 0; i < 2*scale; i+=scale) {
+            // Positive x-axis
+            let model_transform = Mat4.translation(4.5*scale,0,-i-16*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
+
+            // Negative x-axis (mirror in this case since equal length)
+            let model_transform2 = Mat4.translation(-4.5*scale,0,-i-16*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
+        }
+
+        // Topmost short center verticals
+        for (let i = 0; i < 3*scale; i+=scale) {
+            // Positive x-axis
+            let model_transform = Mat4.translation(1.5*scale,0,-i-19*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
+
+            // Negative x-axis (mirror in this case since equal length)
+            let model_transform2 = Mat4.translation(-1.5*scale,0,-i-19*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
+        }
+
+        // Two sets of short center verticals
+        for (let i = 0; i < 8*scale; i+=scale) {
+            if (i == 2*scale) i+=4*scale;
+            // Positive x-axis
+            let model_transform = Mat4.translation(1.5*scale,0,i-2*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
+
+            // Negative x-axis (mirror in this case since equal length)
+            let model_transform2 = Mat4.translation(-1.5*scale,0,i-2*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
+        }
+
+        // Short side verticals at bottom middle + side
+        for (let i = 0; i < 2*scale; i+=scale) {
+            // Positive x-axis
+            let model_transform = Mat4.translation(4.5*scale,0,i+scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
+            this.shapes.pellet.draw(context, program_state, Mat4.translation(6*scale,0,0).times(model_transform), this.materials.pellet);
+
+            // Negative x-axis (mirror in this case since equal length)
+            let model_transform2 = Mat4.translation(-4.5*scale,0,i+scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
+            this.shapes.pellet.draw(context, program_state, Mat4.translation(-6*scale,0,0).times(model_transform2), this.materials.pellet);
+        }
+
+        // Bottom sidemost verticals
+        for (let i = 0; i < 8*scale; i+=scale) {
+            if (i == 2*scale) i+=4*scale;
+            // Positive x-axis
+            let model_transform = Mat4.translation(x_width,0,i-2*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
+
+            // Negative x-axis (mirror in this case since equal length)
+            let model_transform2 = Mat4.translation(-x_width,0,i-2*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);         
         }
     }
 
