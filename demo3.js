@@ -169,7 +169,7 @@ class Ghost extends Maze_Runner {
                 {ambient: 0.7, color: hex_color("#CCC0C0")}),
         }
         //Ghost starts at world origin, begin facing forward
-        super(model_info, loc_transform, Mat4.rotation(Math.PI,0,1,0).times(Mat4.rotation(-Math.PI/6,1,0,0)), maze_scale, speed, 's');
+        super(model_info, loc_transform, Mat4.rotation(Math.PI,0,1,0).times(Mat4.rotation(-Math.PI/6,1,0,0)).times(Mat4.scale(maze_scale/2,maze_scale/2,maze_scale/2)), maze_scale, speed, 's');
         this.turn_dt = 2;
     }
 
@@ -227,7 +227,7 @@ export class Demo3 extends Scene {
         }
 
         this.follow = true;
-        this.scale = 2;
+        this.scale = 1;
         const speed = this.scale;
 
         this.pacman = new PacMan(this.scale, speed);
@@ -294,8 +294,6 @@ export class Demo3 extends Scene {
             if (this.follow)
                 initial_camera_location = Mat4.inverse((this.pacman.model_transform).times(this.pov1_matrix));
             else initial_camera_location = this.pov3;
-            
-            //initial_camera_location = Mat4.look_at(vec3(0, 3*this.scale, -13*this.scale), vec3(0, 0, -7*this.scale), vec3(0, 0, 1));//DELETE: to look at ghost faces
 
             program_state.set_camera(initial_camera_location);
         }
@@ -316,7 +314,7 @@ export class Demo3 extends Scene {
         program_state.lights = [new Light(light_positions[0], white, bright)];
 
         this.make_walls(context, program_state, this.scale);
-        this.make_pellets(context, program_state);
+        this.make_pellets(context, program_state, this.scale);
         //const ghost_colors = ["FF8888","",""]
         let dir_R = Mat4.identity();
         for (let i = 0; i < this.alive.length; ++i) {
@@ -338,74 +336,58 @@ export class Demo3 extends Scene {
             desired = this.pov3;    //Mat4.inverse((this.pacman.model_transform).times(Mat4.translation(0,50,10)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
             
         desired = desired.map((x,i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.15));
+        //desired = initial_camera_location = Mat4.look_at(vec3(0, 3*this.scale, -13*this.scale), vec3(0, 0, -7*this.scale), vec3(0, 0, 1)); //DELETE: to look at ghost faces
         program_state.set_camera(desired);
     }
     
-    make_pellets(context, program_state) {
+    make_pellets(context, program_state, scale) {
         // Pellet size is 1/2 of regular sphere
-        let pellet_transform = Mat4.identity().times(Mat4.scale(0.5,0.5,0.5));
-
+        this.scale = 1; //DELETE FIRST
+        const size = 0.2*scale;
+        let pellet_transform = Mat4.identity().times(Mat4.scale(size,size,size));
+        const dist = 1.5*scale;
         // The row of pellets starting at pacman's origin
-        for (let i = 0; i <= 30; i++) {
-            if (i % 5 === 0 && i !== 0) {
+        for (let i = 1.5*scale; i <= 7*scale; i+=scale) {
+            // Positive x-axis
+            let model_transform = Mat4.translation(i,0,0).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
 
-                // Positive x-axis
-                let model_transform = pellet_transform.times(Mat4.translation(i,0,0));
-                this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-                
-                // Negative x-axis (mirror in this case since equal length)
-                let model_transform2 = pellet_transform.times(Mat4.translation(-i,0,0));
-                this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
-            }
+            // Negative x-axis (mirror in this case since equal length)
+            let model_transform2 = Mat4.translation(-i,0,0).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
         }
 
         // The long vertical from pacman's origin
-        for (let i = 0; i <= 90; i++) {
-            if (i % 5 === 0 && i !== 0) {
-
+        for (let i = -3*scale; i <= 21*scale; i+=scale) {
                 // Positive x-axis
-                let model_transform = pellet_transform.times(Mat4.translation(30,0,-i));
+                let model_transform = Mat4.translation(7.5*scale,0,-i).times(pellet_transform);
                 this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
                 
                 // Negative x-axis (mirror in this case since equal length)
-                let model_transform2 = pellet_transform.times(Mat4.translation(-30,0,-i));
+                let model_transform2 = Mat4.translation(-7.5*scale,0,-i).times(pellet_transform);
                 this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
-                
-                // To fill in the small gap in the positive z-axis
-                if (i <= 15) {
-                    let model_transform3 = pellet_transform.times(Mat4.translation(-30,0,i));
-                    this.shapes.pellet.draw(context, program_state, model_transform3, this.materials.pellet);
-
-                    let model_transform4 = pellet_transform.times(Mat4.translation(30,0,i));
-                    this.shapes.pellet.draw(context, program_state, model_transform4, this.materials.pellet);
-                }
-            }
         }
 
         // The long horizontal at the bottom
-        for (let i = 0; i <= 50; i++) {
-            if (i % 5 === 0) {
+        for (let i = 0.5*scale; i <= 13*scale; i+=scale) {
+            // Positive x-axis
+            let model_transform = Mat4.translation(i,0,6*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
 
-                // Positive x-axis
-                let model_transform = pellet_transform.times(Mat4.translation(i,0,24));
-                this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-                
-                // Negative x-axis (mirror in this case since equal length)
-                let model_transform2 = pellet_transform.times(Mat4.translation(-i,0,24));
-                this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
-            }
+            // Negative x-axis (mirror in this case since equal length)
+            let model_transform2 = Mat4.translation(-i,0,6*scale).times(pellet_transform);
+            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
         }
 
         // The long horizontal at the top
-        for (let i = 0; i <= 50; i++) {
-            if (i % 5 === 0 && i !== 30) {
-
+        for (let i = 0.5*scale; i <= 13*scale; i+=scale) {
+            if (i !== 7.5*scale) {
                 // Positive x-axis
-                let model_transform = pellet_transform.times(Mat4.translation(i,0,-72));
+                let model_transform = Mat4.translation(i,0,-18*scale).times(pellet_transform);
                 this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
                 
                 // Negative x-axis (mirror in this case since equal length)
-                let model_transform2 = pellet_transform.times(Mat4.translation(-i,0,-72));
+                let model_transform2 = Mat4.translation(-i,0,-18*scale).times(pellet_transform);
                 this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
             }
         }
