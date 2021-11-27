@@ -5,7 +5,8 @@ const {
 } = tiny;
 const {Cube, Axis_Arrows, Textured_Phong, Phong_Shader, Basic_Shader, Subdivision_Sphere} = defs
 
-import {Shape_From_File} from './examples/obj-file-demo.js'
+import {Shape_From_File} from './examples/obj-file-demo.js';
+import {Text_Line} from './examples/text-demo.js'
 
 
 class Maze_Runner {
@@ -216,9 +217,11 @@ export class Demo3 extends Scene {
             pacman: new defs.Subdivision_Sphere(4),
             ghost: new defs.Subdivision_Sphere(2),
             pellet: new defs.Subdivision_Sphere(4),
+            text: new Text_Line(35)
         };
 
         // *** Materials
+        const texture = new defs.Textured_Phong(1);
         this.materials = {
             wall: new Material(new defs.Phong_Shader(),
                 {ambient: 0.4, diffusivity: 0.6, specularity: 0.7, color: hex_color("#4444CC")}),
@@ -228,10 +231,13 @@ export class Demo3 extends Scene {
                 {ambient: 0.5, color: hex_color("#fff2c7")}),
             speed_powerup: new Material(new defs.Phong_Shader(),
                 {ambient: 0.3, diffusivity: 1, specularity: 1, color: hex_color("#00FF00")}),
+            text_image: new Material(texture,
+                {ambient: 1, diffusivity: 0, specularity: 0, texture: new Texture("assets/text.png")})
         }
 
         this.follow = true;
         this.scale = 2;
+        this.score = 0;
         const speed = this.scale;
 
         this.speed_powerup = false;
@@ -294,6 +300,16 @@ export class Demo3 extends Scene {
         });
     }
 
+    disp_text(context, program_state, M, str, line_spacing=2){
+        const multi_line_string = str.split('\n');
+        for (let line of multi_line_string.slice(0, 30)) {             // Assign the string to Text_String, and then draw it.
+            this.shapes.text.set_string(line, context.context);
+            this.shapes.text.draw(context, program_state, M, this.materials.text_image);
+            // Move our basis down a line.
+            M.post_multiply(Mat4.translation(0, -line_spacing, 0));
+        }
+    }
+    
     display(context, program_state) {
         // display():  Called once per frame of animation.
 
@@ -334,6 +350,9 @@ export class Demo3 extends Scene {
             this.speed_powerup_pos_checker();
         this.make_speed_powerup(context, program_state, this.scale);
         
+        const score_transform = program_state.camera_transform.times(Mat4.translation(3.75,3.75,-10)).times(Mat4.scale(0.2, 0.2, 0.2));//(Mat4.rotation(Math.PI/2, -1,0,0));
+        this.disp_text(context, program_state, score_transform, "Score: "+String(this.score).padStart(5,'0'));
+
         //const ghost_colors = ["FF8888","",""]
         let dir_R = Mat4.identity();
         for (let i = 0; i < this.alive.length; ++i) {

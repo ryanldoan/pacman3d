@@ -4,6 +4,7 @@ import {Transforms_Sandbox} from "./examples/transforms-sandbox.js"
 import {Collision_Demo} from "./examples/collisions-demo.js"
 import {Demo3} from './demo3.js';
 import {Obj_File_Demo} from "./examples/obj-file-demo.js"
+import {Text_Demo} from "./examples/text-demo.js"
 
 // Pull these names into this module's scope for convenience:
 const {
@@ -25,7 +26,8 @@ Object.assign(defs,
         {Transforms_Sandbox},
         {Demo3: Demo3},
         {Collision_Demo: Collision_Demo},
-        {Obj_File_Demo: Obj_File_Demo}
+        {Obj_File_Demo: Obj_File_Demo},
+        {Text_Demo: Text_Demo}
         );
 
 // ******************** End extra step
