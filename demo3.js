@@ -379,13 +379,13 @@ export class Demo3 extends Scene {
     }
     
     speed_powerup_pos_checker(number) {
-        if (this.speed_pos_random_number === 1) {
+        if (this.speed_pos_random_number == 1) {
             this.speed_powerup_pos1 = true;
-        } else if (this.speed_pos_random_number === 2) {
+        } else if (this.speed_pos_random_number == 2) {
             this.speed_powerup_pos2 = true;
-        } else if (this.speed_pos_random_number === 3) {
+        } else if (this.speed_pos_random_number == 3) {
             this.speed_powerup_pos3 = true;
-        } else if (this.speed_pos_random_number === 4) {
+        } else if (this.speed_pos_random_number == 4) {
             this.speed_powerup_pos4 = true;
         }
         this.speed_powerup = true;
