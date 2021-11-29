@@ -773,6 +773,37 @@ export class Demo3 extends Scene {
 
         this.make_side(context, program_state, maze_scale);
         this.make_side(context, program_state, maze_scale, true);
+
+        const pac = this.pacman;
+        let pac_r = pac.getRotationMatrix();
+
+        let trans_pac = this.pacman.model_transform.times(Mat4.inverse(pac_r));
+
+        //store all walls into an array
+        const walls = [model_trans_wall_1, model_trans_wall_2, model_trans_wall_3, model_trans_wall_4,
+                       model_trans_wall_5, model_trans_wall_6, model_trans_wall_7, model_trans_wall_8,
+                       model_trans_wall_9, model_trans_wall_10, model_trans_wall_11, model_trans_wall_12,
+                       model_trans_wall_13];
+        
+        //[0][3] holds x values (moving forward (-) and back (+))
+        //[2][3] holds z values (moving left (-) and right (+))
+        for (var i = 0; i < 13; i++)
+        {
+            //pacman is in the wall x-coordinate range by +- 1
+            if ((trans_pac[0][3] > (walls[i][0][3] - 1)) &&
+                (trans_pac[0][3] < (walls[i][0][3] + 1)))
+                {
+                //pacman is in the wall z-coordinate range by +- 1
+                if ((trans_pac[2][3] > (walls[i][2][3] - 1)) &&
+                    (trans_pac[2][3] < (walls[i][2][3] + 1)))
+                    {
+                    //collision is detected
+                    console.log("Collision Detection");
+                    this.pacman.dir = 's'; //error -- shouldn't actually pause game
+                }
+            }
+        }
+        console.log(trans_pac); 
     }
 }
 
