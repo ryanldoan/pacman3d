@@ -343,7 +343,8 @@ export class Depth_Texture_Shader_2D extends defs.Phong_Shader {
                 void main(){
                     // Sample the texture image in the correct place:
                     vec4 tex_color = texture2D( texture, f_tex_coord );
-                    tex_color.y = tex_color.z = tex_color.x;
+                    if (tex_color.y > .01)
+                        tex_color.y = tex_color.z = tex_color.x = tex_color.x + 0.4;
                     if( tex_color.w < .01 ) discard;
                                                                              // Compute an initial (ambient) color:
                     gl_FragColor = vec4( ( tex_color.xyz + shape_color.xyz ) * ambient, shape_color.w * tex_color.w ); 

@@ -841,12 +841,12 @@ export class Demo3 extends Scene {
         gl.texImage2D(
             gl.TEXTURE_2D,      // target
             0,                  // mip level
-            gl.DEPTH_COMPONENT, // internal format
+            gl.RGBA, // internal format
             this.lightDepthTextureSize,   // width
             this.lightDepthTextureSize,   // height
             0,                  // border
-            gl.DEPTH_COMPONENT, // format
-            gl.UNSIGNED_INT,    // type
+            gl.RGBA, // format
+            gl.UNSIGNED_BYTE,    // type
             null);              // data
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -858,7 +858,7 @@ export class Demo3 extends Scene {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.lightDepthFramebuffer);
         gl.framebufferTexture2D(
             gl.FRAMEBUFFER,       // target
-            gl.DEPTH_ATTACHMENT,  // attachment point
+            gl.COLOR_ATTACHMENT0,  // attachment point
             gl.TEXTURE_2D,        // texture target
             this.lightDepthTexture,         // texture
             0);                   // mip level
