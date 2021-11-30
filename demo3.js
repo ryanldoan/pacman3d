@@ -310,9 +310,36 @@ export class Demo3 extends Scene {
         }
     }
     
+    render(context, program_state, map=false){
+        this.make_walls(context, program_state, this.scale);
+        this.make_pellets(context, program_state, this.scale);
+        this.make_invincibility_powerup(context, program_state, this.scale);
+        
+        //const ghost_colors = ["FF8888","",""]
+        let dir_R = Mat4.identity();
+        for (let i = 0; i < this.alive.length; ++i) {
+            const runner = this.alive[i];
+            if (!this.follow || i > 0)
+                dir_R = runner.getRotationMatrix();
+            runner.model_info.shape.draw(context, program_state, runner.model_transform.times(dir_R).times(runner.upright_R), runner.model_info.material);
+        }
+        
+        if (!map){
+            // Speed Powerup Generation
+            if (this.speed_powerup === false)
+                this.speed_powerup_pos_checker();
+            this.make_speed_powerup(context, program_state, this.scale);
+
+            const score_transform = program_state.camera_transform.times(Mat4.translation(3.75,3.75,-10)).times(Mat4.scale(0.2, 0.2, 0.2));//(Mat4.rotation(Math.PI/2, -1,0,0));
+            this.disp_text(context, program_state, score_transform, "Score: "+String(this.score).padStart(5,'0'));
+        }
+        
+    }
+
     display(context, program_state) {
         // display():  Called once per frame of animation.
-
+        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
+        
         // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
         if (!context.scratchpad.controls) {
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
@@ -329,32 +356,13 @@ export class Demo3 extends Scene {
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, .1, 1000);
 
-        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
-
-        const light_positions = [vec4(0, 50*this.scale, -10*this.scale, 1), 
-                                 vec4(0, 3, -6*this.scale, 1)];
+        const light_positions = [vec4(0, 50*this.scale, -10*this.scale, 1)];
         const white = color(1, 1, 1, 1);
-        //const red = color(1, 0, 0, 1);
         const bright = 5000*this.scale**2;
-        //const dim = 10*this.scale**2;
-
         // The parameters of the Light are: position, color, size
         program_state.lights = [new Light(light_positions[0], white, bright)];
 
-        this.make_walls(context, program_state, this.scale);
-        this.make_pellets(context, program_state, this.scale);
-        this.make_invincibility_powerup(context, program_state, this.scale);
-        
-        // Speed Powerup Generation
-        if (this.speed_powerup === false)
-            this.speed_powerup_pos_checker();
-        this.make_speed_powerup(context, program_state, this.scale);
-        
-        const score_transform = program_state.camera_transform.times(Mat4.translation(3.75,3.75,-10)).times(Mat4.scale(0.2, 0.2, 0.2));//(Mat4.rotation(Math.PI/2, -1,0,0));
-        this.disp_text(context, program_state, score_transform, "Score: "+String(this.score).padStart(5,'0'));
-
-        //const ghost_colors = ["FF8888","",""]
-        let dir_R = Mat4.identity();
+        // Move runners
         for (let i = 0; i < this.alive.length; ++i) {
             const runner = this.alive[i];
             if (i > 0 && this.pacman.dir==='s'){
@@ -362,10 +370,8 @@ export class Demo3 extends Scene {
                 runner.move(this.follow, 0);
             }else
                 runner.move(this.follow, dt);
-            if (!this.follow || i > 0)
-                dir_R = runner.getRotationMatrix();
-            runner.model_info.shape.draw(context, program_state, runner.model_transform.times(dir_R).times(runner.upright_R), runner.model_info.material);
         }
+
 
         let desired;
         if (this.follow)
@@ -376,6 +382,8 @@ export class Demo3 extends Scene {
         desired = desired.map((x,i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.15));
         //desired = initial_camera_location = Mat4.look_at(vec3(0, 3*this.scale, -13*this.scale), vec3(0, 0, -7*this.scale), vec3(0, 0, 1)); //DELETE: to look at ghost faces
         program_state.set_camera(desired);
+
+        this.render(context, program_state);
     }
     
     speed_powerup_pos_checker(number) {
