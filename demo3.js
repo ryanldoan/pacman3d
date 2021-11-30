@@ -298,7 +298,7 @@ export class Demo3 extends Scene {
 
 
         this.pov1_matrix = Mat4.translation(0,3,4).times(Mat4.rotation(-Math.PI/12,1,0,0));
-        this.pov3 = Mat4.look_at(vec3(0, 50*this.scale, 10*this.scale), vec3(0, 0, -5*this.scale), vec3(0, 0, -1));
+        this.pov3 = Mat4.look_at(vec3(0, 35*this.scale, 10*this.scale), vec3(0, 0, -5*this.scale), vec3(0, 0, -1));
         
         // To make sure texture initialization only does once
         this.init_ok = false;
@@ -439,7 +439,7 @@ export class Demo3 extends Scene {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         
         const smoothed_pacman_view = Mat4.inverse(desired).times(Mat4.inverse(this.pov1_matrix));
-        const view_mat = Mat4.inverse(smoothed_pacman_view.times(Mat4.translation(0,10*this.scale,0)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
+        const view_mat = Mat4.inverse(smoothed_pacman_view.times(Mat4.translation(0,15*this.scale,0)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
         program_state.view_mat = view_mat;
         program_state.projection_transform = Mat4.perspective(Math.PI / 3, 1.3, 2, 500);
         //program_state.set_camera(view_mat);
