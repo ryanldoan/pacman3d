@@ -6,7 +6,29 @@ const {
 const {Cube, Axis_Arrows, Textured_Phong, Phong_Shader, Basic_Shader, Subdivision_Sphere} = defs
 
 import {Shape_From_File} from './examples/obj-file-demo.js';
-import {Text_Line} from './examples/text-demo.js'
+import {Text_Line} from './examples/text-demo.js';
+import {Color_Phong_Shader, Shadow_Textured_Phong_Shader,
+    Depth_Texture_Shader_2D, Buffered_Texture, LIGHT_DEPTH_TEX_SIZE} from './examples/shadow-demo-shaders.js'
+
+// 2D shape, to display the texture buffer
+const Square =
+    class Square extends tiny.Vertex_Buffer {
+        constructor() {
+            super("position", "normal", "texture_coord");
+            this.arrays.position = [
+                vec3(0, 0, 0), vec3(1, 0, 0), vec3(0, 1, 0),
+                vec3(1, 1, 0), vec3(1, 0, 0), vec3(0, 1, 0)
+            ];
+            this.arrays.normal = [
+                vec3(0, 0, 1), vec3(0, 0, 1), vec3(0, 0, 1),
+                vec3(0, 0, 1), vec3(0, 0, 1), vec3(0, 0, 1),
+            ];
+            this.arrays.texture_coord = [
+                vec(0, 0), vec(1, 0), vec(0, 1),
+                vec(1, 1), vec(1, 0), vec(0, 1)
+            ]
+        }
+    }
 
 
 class Maze_Runner {
@@ -217,7 +239,8 @@ export class Demo3 extends Scene {
             pacman: new defs.Subdivision_Sphere(4),
             ghost: new defs.Subdivision_Sphere(2),
             pellet: new defs.Subdivision_Sphere(4),
-            text: new Text_Line(35)
+            text: new Text_Line(35),
+            square_2d: new Square(),
         };
 
         // *** Materials
@@ -234,6 +257,12 @@ export class Demo3 extends Scene {
             text_image: new Material(texture,
                 {ambient: 1, diffusivity: 0, specularity: 0, texture: new Texture("assets/text.png")})
         }
+
+        // For depth texture display
+        this.depth_tex =  new Material(new Depth_Texture_Shader_2D(), {
+            color: color(0, 0, .0, 1),
+            ambient: 1, diffusivity: 0, specularity: 0, texture: null
+        });
 
         this.follow = true;
         this.scale = 2;
@@ -256,6 +285,9 @@ export class Demo3 extends Scene {
 
         this.pov1_matrix = Mat4.translation(0,3,4).times(Mat4.rotation(-Math.PI/12,1,0,0));
         this.pov3 = Mat4.look_at(vec3(0, 50*this.scale, 10*this.scale), vec3(0, 0, -5*this.scale), vec3(0, 0, -1));
+        
+        // To make sure texture initialization only does once
+        this.init_ok = false;
     }
 
     make_control_panel() {
@@ -323,7 +355,7 @@ export class Demo3 extends Scene {
                 dir_R = runner.getRotationMatrix();
             runner.model_info.shape.draw(context, program_state, runner.model_transform.times(dir_R).times(runner.upright_R), runner.model_info.material);
         }
-        
+
         if (!map){
             // Speed Powerup Generation
             if (this.speed_powerup === false)
@@ -339,7 +371,17 @@ export class Demo3 extends Scene {
     display(context, program_state) {
         // display():  Called once per frame of animation.
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
-        
+        const gl = context.context;
+
+        if (!this.init_ok) {
+            const ext = gl.getExtension('WEBGL_depth_texture');
+            if (!ext) {
+                return alert('need WEBGL_depth_texture');  // eslint-disable-line
+            }
+            this.texture_buffer_init(gl);
+
+            this.init_ok = true;
+        }
         // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
         if (!context.scratchpad.controls) {
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
@@ -353,8 +395,6 @@ export class Demo3 extends Scene {
             program_state.set_camera(initial_camera_location);
         }
         
-        program_state.projection_transform = Mat4.perspective(
-            Math.PI / 4, context.width / context.height, .1, 1000);
 
         const light_positions = [vec4(0, 50*this.scale, -10*this.scale, 1)];
         const white = color(1, 1, 1, 1);
@@ -372,7 +412,22 @@ export class Demo3 extends Scene {
                 runner.move(this.follow, dt);
         }
 
+        
+        // Bind the Depth Texture Buffer
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.lightDepthFramebuffer);
+        gl.viewport(0, 0, this.lightDepthTextureSize, this.lightDepthTextureSize);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        
+        program_state.view_mat = Mat4.inverse((this.pacman.model_transform).times(Mat4.translation(0,10*this.scale,0)).times(Mat4.rotation(-Math.PI/2,1,0,0)));//program_state.camera_inverse;
+        program_state.projection_transform = Mat4.perspective(Math.PI / 3, 1, 0.8, 500);
+        //program_state.camera_inverse = Mat4.look_at(vec3(0, 5, 5), vec3(0, 0, 0), vec3(0, 0, -1));
+        //program_state.set_camera(Mat4.look_at(vec3(0, 5, 5), vec3(0, 0, 0), vec3(0, 0, -1)));
+        this.render(context, program_state, true);
 
+        // Step 2: unbind, draw to the canvas
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+        
         let desired;
         if (this.follow)
             desired = Mat4.inverse((this.pacman.model_transform).times(this.pov1_matrix));
@@ -380,10 +435,20 @@ export class Demo3 extends Scene {
             desired = this.pov3;    //Mat4.inverse((this.pacman.model_transform).times(Mat4.translation(0,50,10)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
             
         desired = desired.map((x,i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.15));
-        //desired = initial_camera_location = Mat4.look_at(vec3(0, 3*this.scale, -13*this.scale), vec3(0, 0, -7*this.scale), vec3(0, 0, 1)); //DELETE: to look at ghost faces
-        program_state.set_camera(desired);
 
+        //desired = initial_camera_location = Mat4.look_at(vec3(0, 3*this.scale, -13*this.scale), vec3(0, 0, -7*this.scale), vec3(0, 0, 1)); //DELETE: to look at ghost faces
+        program_state.view_mat = desired;
+        program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .1, 1000);
+        program_state.set_camera(desired);
         this.render(context, program_state);
+
+        // Step 3: display the textures
+        this.shapes.square_2d.draw(context, program_state,
+            Mat4.translation(-.99, .08, 0).times(
+            Mat4.scale(0.5, 0.5 * gl.canvas.width / gl.canvas.height, 1)
+            ),
+            this.depth_tex.override({texture: this.lightDepthTexture})
+        );
     }
     
     speed_powerup_pos_checker(number) {
@@ -781,6 +846,69 @@ export class Demo3 extends Scene {
 
         this.make_side(context, program_state, maze_scale);
         this.make_side(context, program_state, maze_scale, true);
+    }
+
+    texture_buffer_init(gl) {
+        // Depth Texture
+        this.lightDepthTexture = gl.createTexture();
+        // Bind it to TinyGraphics
+        this.light_depth_texture = new Buffered_Texture(this.lightDepthTexture);
+
+        this.lightDepthTextureSize = LIGHT_DEPTH_TEX_SIZE;
+        gl.bindTexture(gl.TEXTURE_2D, this.lightDepthTexture);
+        gl.texImage2D(
+            gl.TEXTURE_2D,      // target
+            0,                  // mip level
+            gl.DEPTH_COMPONENT, // internal format
+            this.lightDepthTextureSize,   // width
+            this.lightDepthTextureSize,   // height
+            0,                  // border
+            gl.DEPTH_COMPONENT, // format
+            gl.UNSIGNED_INT,    // type
+            null);              // data
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        // Depth Texture Buffer
+        this.lightDepthFramebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.lightDepthFramebuffer);
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,       // target
+            gl.DEPTH_ATTACHMENT,  // attachment point
+            gl.TEXTURE_2D,        // texture target
+            this.lightDepthTexture,         // texture
+            0);                   // mip level
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        // create a color texture of the same size as the depth texture
+        // see article why this is needed_
+        this.unusedTexture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, this.unusedTexture);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            this.lightDepthTextureSize,
+            this.lightDepthTextureSize,
+            0,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            null,
+        );
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        // attach it to the framebuffer
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,        // target
+            gl.COLOR_ATTACHMENT0,  // attachment point
+            gl.TEXTURE_2D,         // texture target
+            this.unusedTexture,         // texture
+            0);                    // mip level
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
 }
 

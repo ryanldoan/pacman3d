@@ -684,7 +684,7 @@ const Phong_Shader = defs.Phong_Shader =
             // cache and send those.  They will be the same throughout this draw
             // call, and thus across each instance of the vertex shader.
             // Transpose them since the GPU expects matrices as column-major arrays.
-            const PCM = gpu_state.projection_transform.times(gpu_state.camera_inverse).times(model_transform);
+            const PCM = gpu_state.projection_transform.times(gpu_state.view_mat).times(model_transform);
             gl.uniformMatrix4fv(gpu.model_transform, false, Matrix.flatten_2D_to_1D(model_transform.transposed()));
             gl.uniformMatrix4fv(gpu.projection_camera_model_transform, false, Matrix.flatten_2D_to_1D(PCM.transposed()));
 
