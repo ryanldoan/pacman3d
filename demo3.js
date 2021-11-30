@@ -6,7 +6,29 @@ const {
 const {Cube, Axis_Arrows, Textured_Phong, Phong_Shader, Basic_Shader, Subdivision_Sphere} = defs
 
 import {Shape_From_File} from './examples/obj-file-demo.js';
-import {Text_Line} from './examples/text-demo.js'
+import {Text_Line} from './examples/text-demo.js';
+import {Color_Phong_Shader, Shadow_Textured_Phong_Shader,
+    Depth_Texture_Shader_2D, Buffered_Texture, LIGHT_DEPTH_TEX_SIZE} from './examples/shadow-demo-shaders.js'
+
+// 2D shape, to display the texture buffer
+const Square =
+    class Square extends tiny.Vertex_Buffer {
+        constructor() {
+            super("position", "normal", "texture_coord");
+            this.arrays.position = [
+                vec3(0, 0, 0), vec3(1, 0, 0), vec3(0, 1, 0),
+                vec3(1, 1, 0), vec3(1, 0, 0), vec3(0, 1, 0)
+            ];
+            this.arrays.normal = [
+                vec3(0, 0, 1), vec3(0, 0, 1), vec3(0, 0, 1),
+                vec3(0, 0, 1), vec3(0, 0, 1), vec3(0, 0, 1),
+            ];
+            this.arrays.texture_coord = [
+                vec(0, 0), vec(1, 0), vec(0, 1),
+                vec(1, 1), vec(1, 0), vec(0, 1)
+            ]
+        }
+    }
 
 
 class Maze_Runner {
@@ -206,6 +228,10 @@ class Ghost extends Maze_Runner {
     }
 }
 
+const Struct = (...keys) => ((...v) => keys.reduce((o, k, i) => {o[k] = v[i]; return o} , {}));
+//center matrix transform, length & width are from center to side
+const Wall = Struct('center', 'length', 'width', 'vert');
+
 export class Demo3 extends Scene {
     constructor() {
         // constructor(): Scenes begin by populating initial values like the Shapes and Materials they'll need.
@@ -217,7 +243,8 @@ export class Demo3 extends Scene {
             pacman: new defs.Subdivision_Sphere(4),
             ghost: new defs.Subdivision_Sphere(2),
             pellet: new defs.Subdivision_Sphere(4),
-            text: new Text_Line(35)
+            text: new Text_Line(35),
+            square_2d: new Square(),
         };
 
         // *** Materials
@@ -234,6 +261,12 @@ export class Demo3 extends Scene {
             text_image: new Material(texture,
                 {ambient: 1, diffusivity: 0, specularity: 0, texture: new Texture("assets/text.png")})
         }
+
+        // For depth texture display
+        this.depth_tex =  new Material(new Depth_Texture_Shader_2D(), {
+            color: color(0, 0, .0, 1),
+            ambient: 1, diffusivity: 0, specularity: 0, texture: null
+        });
 
         this.follow = true;
         this.scale = 2;
@@ -254,8 +287,21 @@ export class Demo3 extends Scene {
         this.ghost3 = new Ghost(Mat4.translation(2*this.scale,0,-9.25*this.scale), this.scale, speed);
         this.alive = [this.pacman, this.ghost1, this.ghost2, this.ghost3];
 
+        this.walls = [];
+        this.make_walls(this.scale);
+
+        this.pellets = [];
+        this.make_pellets(this.scale);
+        
+        this.invinc_pellets = [];
+        this.make_invincibility_powerups(this.scale);
+
+
         this.pov1_matrix = Mat4.translation(0,3,4).times(Mat4.rotation(-Math.PI/12,1,0,0));
         this.pov3 = Mat4.look_at(vec3(0, 50*this.scale, 10*this.scale), vec3(0, 0, -5*this.scale), vec3(0, 0, -1));
+        
+        // To make sure texture initialization only does once
+        this.init_ok = false;
     }
 
     make_control_panel() {
@@ -310,9 +356,45 @@ export class Demo3 extends Scene {
         }
     }
     
+    render(context, program_state, map=false){
+        this.draw_walls(context, program_state, this.scale);
+        this.draw_pellets(context, program_state);
+        
+        //const ghost_colors = ["FF8888","",""]
+        let dir_R = Mat4.identity();
+        for (let i = 0; i < this.alive.length; ++i) {
+            const runner = this.alive[i];
+            if (!this.follow || i > 0)
+                dir_R = runner.getRotationMatrix();
+            runner.model_info.shape.draw(context, program_state, runner.model_transform.times(dir_R).times(runner.upright_R), runner.model_info.material);
+        }
+
+        if (!map){
+            // Speed Powerup Generation
+            if (this.speed_powerup === false)
+                this.speed_powerup_pos_checker();
+            this.make_speed_powerup(context, program_state, this.scale);
+
+            const score_transform = program_state.camera_transform.times(Mat4.translation(3.75,3.75,-10)).times(Mat4.scale(0.2, 0.2, 0.2));//(Mat4.rotation(Math.PI/2, -1,0,0));
+            this.disp_text(context, program_state, score_transform, "Score: "+String(this.score).padStart(5,'0'));
+        }
+        
+    }
+
     display(context, program_state) {
         // display():  Called once per frame of animation.
+        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
+        const gl = context.context;
 
+        if (!this.init_ok) {
+            const ext = gl.getExtension('WEBGL_depth_texture');
+            if (!ext) {
+                return alert('need WEBGL_depth_texture');  // eslint-disable-line
+            }
+            this.texture_buffer_init(gl);
+
+            this.init_ok = true;
+        }
         // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
         if (!context.scratchpad.controls) {
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
@@ -326,35 +408,14 @@ export class Demo3 extends Scene {
             program_state.set_camera(initial_camera_location);
         }
         
-        program_state.projection_transform = Mat4.perspective(
-            Math.PI / 4, context.width / context.height, .1, 1000);
 
-        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
-
-        const light_positions = [vec4(0, 50*this.scale, -10*this.scale, 1), 
-                                 vec4(0, 3, -6*this.scale, 1)];
+        const light_positions = [vec4(0, 50*this.scale, -10*this.scale, 1)];
         const white = color(1, 1, 1, 1);
-        //const red = color(1, 0, 0, 1);
         const bright = 5000*this.scale**2;
-        //const dim = 10*this.scale**2;
-
         // The parameters of the Light are: position, color, size
         program_state.lights = [new Light(light_positions[0], white, bright)];
 
-        this.make_walls(context, program_state, this.scale);
-        this.make_pellets(context, program_state, this.scale);
-        this.make_invincibility_powerup(context, program_state, this.scale);
-        
-        // Speed Powerup Generation
-        if (this.speed_powerup === false)
-            this.speed_powerup_pos_checker();
-        this.make_speed_powerup(context, program_state, this.scale);
-        
-        const score_transform = program_state.camera_transform.times(Mat4.translation(3.75,3.75,-10)).times(Mat4.scale(0.2, 0.2, 0.2));//(Mat4.rotation(Math.PI/2, -1,0,0));
-        this.disp_text(context, program_state, score_transform, "Score: "+String(this.score).padStart(5,'0'));
-
-        //const ghost_colors = ["FF8888","",""]
-        let dir_R = Mat4.identity();
+        // Move runners
         for (let i = 0; i < this.alive.length; ++i) {
             const runner = this.alive[i];
             if (i > 0 && this.pacman.dir==='s'){
@@ -362,9 +423,6 @@ export class Demo3 extends Scene {
                 runner.move(this.follow, 0);
             }else
                 runner.move(this.follow, dt);
-            if (!this.follow || i > 0)
-                dir_R = runner.getRotationMatrix();
-            runner.model_info.shape.draw(context, program_state, runner.model_transform.times(dir_R).times(runner.upright_R), runner.model_info.material);
         }
 
         let desired;
@@ -374,10 +432,323 @@ export class Demo3 extends Scene {
             desired = this.pov3;    //Mat4.inverse((this.pacman.model_transform).times(Mat4.translation(0,50,10)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
             
         desired = desired.map((x,i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.15));
-        //desired = initial_camera_location = Mat4.look_at(vec3(0, 3*this.scale, -13*this.scale), vec3(0, 0, -7*this.scale), vec3(0, 0, 1)); //DELETE: to look at ghost faces
+        
+        // Bind the Depth Texture Buffer
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.lightDepthFramebuffer);
+        gl.viewport(0, 0, this.lightDepthTextureSize, this.lightDepthTextureSize);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        
+        const smoothed_pacman_view = Mat4.inverse(desired).times(Mat4.inverse(this.pov1_matrix));
+        const view_mat = Mat4.inverse(smoothed_pacman_view.times(Mat4.translation(0,10*this.scale,0)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
+        program_state.view_mat = view_mat;
+        program_state.projection_transform = Mat4.perspective(Math.PI / 3, 1.3, 2, 500);
+        //program_state.set_camera(view_mat);
+        this.render(context, program_state, true);
+
+        // Step 2: unbind, draw to the canvas
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+        program_state.view_mat = desired;
+        program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .1, 1000);
         program_state.set_camera(desired);
+        this.render(context, program_state);
+
+        // Step 3: display the textures
+        if (this.follow)
+            this.shapes.square_2d.draw(context, program_state,
+                Mat4.translation(-.99, .26, 0).times(
+                Mat4.scale(0.5, 0.4 * gl.canvas.width / gl.canvas.height, 1)
+                ),
+                this.depth_tex.override({texture: this.lightDepthTexture})
+            );
     }
     
+    draw_pellets(context, program_state){
+        let pellet_transform;
+        for (let i = 0; i < this.pellets.length; i++){
+            pellet_transform = this.pellets[i];
+            this.shapes.pellet.draw(context, program_state, pellet_transform, this.materials.pellet);
+        }
+
+        for (let i = 0; i < this.invinc_pellets.length; i++){
+            pellet_transform = this.invinc_pellets[i];
+            this.shapes.pellet.draw(context, program_state, pellet_transform, this.materials.invincibility_powerup);
+        }
+    }
+    
+    make_invincibility_powerups(scale) {
+        const size = 0.5*scale;
+        const x_width = 12.5*scale;
+        let invincibility_powerup = Mat4.scale(size,size,size);
+                
+        // Top invincibility powerups
+        let powerup_transform = Mat4.translation(x_width,0,0).times(invincibility_powerup);
+        let powerup_transform2 = Mat4.translation(-x_width,0,0).times(invincibility_powerup);
+        // Bottom invincibility powerups
+        let powerup_transform3 = Mat4.translation(x_width,0,-20*scale).times(invincibility_powerup);
+        let powerup_transform4 = Mat4.translation(-x_width,0,-20*scale).times(invincibility_powerup);
+
+        this.invinc_pellets.push(powerup_transform);
+        this.invinc_pellets.push(powerup_transform2);
+        this.invinc_pellets.push(powerup_transform3);
+        this.invinc_pellets.push(powerup_transform4);
+    }
+
+    make_pellets(scale){
+        // Pellet size is 1/2 of regular sphere
+        const size = 0.2*scale;
+        let pellet_transform = Mat4.scale(size,size,size);
+        
+        this.make_half_pellets(scale, pellet_transform, true);
+        this.make_half_pellets(scale, pellet_transform, false);
+    }
+
+    make_half_pellets(scale, pellet_transform, left=true) {
+        const x_dist = 0.5*scale;
+        const x_width = 12.5*scale;
+
+        let mirror = 1;
+        if (left) mirror = -1;
+
+        // The row of pellets starting at pacman's origin
+        for (let i = x_dist+scale; i <= x_width-scale; i+=scale) {
+            if (i == 7.5*scale || i == 8.5*scale || i == 9.5*scale) continue;
+            // Positive x-axis
+            let model_transform = Mat4.translation(mirror*i,0,0).times(pellet_transform);
+            this.pellets.push(model_transform);
+        }
+
+        // The long vertical from pacman's origin
+        for (let i = -3*scale; i <= 21*scale; i+=scale) {
+            // Positive x-axis
+            let model_transform = Mat4.translation(mirror*7.5*scale,0,-i).times(pellet_transform);
+            this.pellets.push(model_transform);
+        }
+
+        // The long horizontal at the bottom
+        for (let i = 0.5*scale; i <= x_width; i+=scale) {
+            // Positive x-axis
+            let model_transform = Mat4.translation(mirror*i,0,6*scale).times(pellet_transform);
+            this.pellets.push(model_transform);
+        }
+
+        // The long horizontal above ghosts top
+        for (let i = x_dist; i <= x_width; i+=scale) {
+            if (i == 7.5*scale) continue;
+            // Positive x-axis
+            let model_transform = Mat4.translation(mirror*i,0,-18*scale).times(pellet_transform);
+            this.pellets.push(model_transform);
+        }
+
+        // The topmost long horizontal
+        for (let i = x_dist+scale; i <= x_width; i+=scale) {
+            // Positive x-axis
+            let model_transform = Mat4.translation(mirror*i,0,-22*scale).times(pellet_transform);
+            this.pellets.push(model_transform);
+        }
+
+        // The horizontal on the bottom of ghosts
+        for (let i = x_dist+scale; i <= x_width; i+=scale) {
+            if (i == 7.5*scale) continue;
+            // Positive x-axis
+            let model_transform = Mat4.translation(mirror*i,0,-3*scale).times(pellet_transform);
+            this.pellets.push(model_transform);
+        }
+
+        // The top close to center long horizontal with the vertical wall in between
+        for (let i = x_dist+scale; i <= x_width; i+=scale) {
+            if (i == 7.5*scale || i == 5.5*scale || i == 6.5*scale) continue;
+            // Positive x-axis
+            let model_transform = Mat4.translation(mirror*i,0,-15*scale).times(pellet_transform);
+            this.pellets.push(model_transform);          
+        }
+
+        // The bottom middle long horizontal with the vertical wall in between
+        for (let i = x_dist+scale; i <= x_width; i+=scale) {
+            if (i == 7.5*scale || i == 5.5*scale || i == 6.5*scale) continue;
+            // Positive x-axis
+            let model_transform = Mat4.translation(mirror*i,0,3*scale).times(pellet_transform);
+            this.pellets.push(model_transform);         
+        }
+
+        // Side verticals at top side
+        for (let i = 0; i < 6*scale; i+=scale) {
+            if (i == 2*scale || i == 4*scale) continue;
+            // Positive x-axis
+            let model_transform = Mat4.translation(mirror*x_width,0,-i-16*scale).times(pellet_transform);
+            this.pellets.push(model_transform);
+        }
+
+        // Side verticals at top middle
+        for (let i = 0; i < 2*scale; i+=scale) {
+            // Positive x-axis
+            let model_transform = Mat4.translation(mirror*4.5*scale,0,-i-16*scale).times(pellet_transform);
+            this.pellets.push(model_transform);
+        }
+
+        // Topmost short center verticals
+        for (let i = 0; i < 3*scale; i+=scale) {
+            // Positive x-axis
+            let model_transform = Mat4.translation(mirror*1.5*scale,0,-i-19*scale).times(pellet_transform);
+            this.pellets.push(model_transform);
+        }
+
+        // Two sets of short center verticals
+        for (let i = 0; i < 8*scale; i+=scale) {
+            if (i == 2*scale) i+=4*scale;
+            // Positive x-axis
+            let model_transform = Mat4.translation(mirror*1.5*scale,0,i-2*scale).times(pellet_transform);
+            this.pellets.push(model_transform);
+        }
+
+        // Short side verticals at bottom middle + side
+        for (let i = 0; i < 2*scale; i+=scale) {
+            // Positive x-axis
+            let model_transform = Mat4.translation(mirror*4.5*scale,0,i+scale).times(pellet_transform);
+            this.pellets.push(model_transform);
+            this.pellets.push(Mat4.translation(mirror*6*scale,0,0).times(model_transform));
+        }
+
+        // Bottom sidemost verticals
+        for (let i = 0; i < 8*scale; i+=scale) {
+            if (i == 2*scale) i+=4*scale;
+            // Positive x-axis
+            let model_transform = Mat4.translation(mirror*x_width,0,i-2*scale).times(pellet_transform);
+            this.pellets.push(model_transform);      
+        }
+    }
+
+    draw_walls(context, program_state, maze_scale){
+        let m;
+        for (let i = 0; i < this.walls.length; i++){
+            const wall = this.walls[i];
+            if (wall.vert)
+                m = Mat4.scale(wall.width, 1, wall.length);
+            else
+                m = Mat4.scale(wall.length, 1, wall.width);
+
+            this.shapes.cube.draw(context, program_state, Mat4.scale(maze_scale,1,maze_scale).times(wall.center).times(m), this.materials.wall);
+        }
+    }
+
+    make_wall(loc, length, maze_scale=1, vert=false, width=1){
+        width = width / 2;
+        length = length / 2;
+        this.walls.push(Wall(loc, length, width, vert));
+    }
+
+    make_side(maze_scale=1, left=false){
+        let mirror = 1;
+        if (left)
+            mirror = -1;
+        //top sideways T
+        let model_trans_wall_1 = Mat4.translation(mirror*6,0,-13.5);
+        let model_trans_wall_2 = Mat4.translation(mirror*4,0,-13.5);
+        //vert side
+        let model_trans_wall_3 = Mat4.translation(mirror*6,0,-6);
+        //horiz side
+        let model_trans_wall_4 = Mat4.translation(mirror*4.5,0,-1.5);
+        //upside down L
+        let model_trans_wall_5 = Mat4.translation(mirror*10,0,-1.5);
+        let model_trans_wall_6 = Mat4.translation(mirror*9,0,0.5);
+        //upside down T
+        let model_trans_wall_7 = Mat4.translation(mirror*7,0,4.5);
+        let model_trans_wall_8 = Mat4.translation(mirror*6,0,2.5);
+        //horiz top side
+        let model_trans_wall_9 = Mat4.translation(mirror*10,0,-16.5);
+        //top box
+        let model_trans_wall_10 = Mat4.translation(mirror*4.5,0,-20);
+        //top side box
+        let model_trans_wall_11 = Mat4.translation(mirror*10,0,-20);
+
+        //outer walls
+        //top jutout
+        let model_trans_wall_12 = Mat4.translation(mirror*11.25,0,-10.25);
+        let model_trans_wall_13 = Mat4.translation(mirror*11,0,-13.75);
+        let model_trans_wall_14 = Mat4.translation(mirror*8.75,0,-12);
+        //bottom jutout
+        let model_trans_wall_15 = Mat4.translation(mirror*11,0,-4.25);
+        let model_trans_wall_16 = Mat4.translation(mirror*11.25,0,-7.75);
+        let model_trans_wall_17 = Mat4.translation(mirror*8.75,0,-6);
+        //horiz out of side wall
+        let model_trans_wall_18 = Mat4.translation(mirror*12.5,0,1.5);
+        //top side wall
+        let model_trans_wall_19 = Mat4.translation(mirror*13.75,0,-18.5);
+        //bottom side wall
+        let model_trans_wall_20 = Mat4.translation(mirror*13.75,0,1.5);
+
+
+        this.make_wall(model_trans_wall_1, 7, maze_scale, true);
+        this.make_wall(model_trans_wall_2, 3, maze_scale);
+        this.make_wall(model_trans_wall_3, 4, maze_scale, true);
+        this.make_wall(model_trans_wall_4, 4, maze_scale);
+        this.make_wall(model_trans_wall_5, 3, maze_scale);
+        this.make_wall(model_trans_wall_6, 3, maze_scale, true);
+        this.make_wall(model_trans_wall_7, 9, maze_scale);
+        this.make_wall(model_trans_wall_8, 3, maze_scale, true);
+        this.make_wall(model_trans_wall_9, 3, maze_scale);
+
+        this.make_wall(model_trans_wall_10, 4, maze_scale, false, 2);
+        this.make_wall(model_trans_wall_11, 3, maze_scale, false, 2);
+
+        this.make_wall(model_trans_wall_12, 5.5, maze_scale, false, 0.5);
+        this.make_wall(model_trans_wall_13, 5, maze_scale, false, 0.5);
+        this.make_wall(model_trans_wall_14, 4, maze_scale, true, 0.5);
+        this.make_wall(model_trans_wall_15, 5, maze_scale, false, 0.5);
+        this.make_wall(model_trans_wall_16, 5.5, maze_scale, false, 0.5);
+        this.make_wall(model_trans_wall_17, 4, maze_scale, true, 0.5);
+        this.make_wall(model_trans_wall_18, 2, maze_scale);
+        this.make_wall(model_trans_wall_19, 10, maze_scale, true, 0.5);
+        this.make_wall(model_trans_wall_20, 12, maze_scale, true, 0.5);
+       
+    }
+
+    make_walls(maze_scale){
+        //center structs
+        //T in front of pacman
+        let model_trans_wall_1 = Mat4.translation(0,0,-4.5);
+        let model_trans_wall_2 = Mat4.translation(0,0,-2.5);
+        //T behind pacman
+        let model_trans_wall_3 = Mat4.translation(0,0,1.5);
+        let model_trans_wall_4 = Mat4.translation(0,0,3.5);
+        //top most T
+        let model_trans_wall_5 = Mat4.translation(0,0,-16.5);
+        let model_trans_wall_6 = Mat4.translation(0,0,-14.5);
+        //ghost box
+        let model_trans_wall_7 = Mat4.translation(0,0,-7.25);
+        let model_trans_wall_8 = Mat4.translation(3.25,0,-9);
+        let model_trans_wall_9 = Mat4.translation(-3.25,0,-9);
+        let model_trans_wall_10 = Mat4.translation(0,0,-10.75); //change later to make gate
+        
+        //outer walls
+        //vert out of top wall
+        let model_trans_wall_11 = Mat4.translation(0,0,-21);
+        //top
+        let model_trans_wall_12 = Mat4.translation(0,0,-23.25);
+        //bottom
+        let model_trans_wall_13 = Mat4.translation(0,0,7.25);
+
+        this.make_wall(model_trans_wall_1, 7, maze_scale);
+        this.make_wall(model_trans_wall_2, 3, maze_scale, true);
+        this.make_wall(model_trans_wall_3, 7, maze_scale);
+        this.make_wall(model_trans_wall_4, 3, maze_scale, true);
+        this.make_wall(model_trans_wall_5, 7, maze_scale);
+        this.make_wall(model_trans_wall_6, 3, maze_scale, true);
+
+        this.make_wall(model_trans_wall_7, 7, maze_scale, false, 0.5);
+        this.make_wall(model_trans_wall_8, 4, maze_scale, true, 0.5);
+        this.make_wall(model_trans_wall_9, 4, maze_scale, true, 0.5);
+        this.make_wall(model_trans_wall_10, 7, maze_scale, false, 0.5);
+
+        this.make_wall(model_trans_wall_11, 4, maze_scale, true);
+        this.make_wall(model_trans_wall_12, 27, maze_scale, false, 0.5);
+        this.make_wall(model_trans_wall_13, 27, maze_scale, false, 0.5);
+
+        this.make_side(maze_scale);
+        this.make_side(maze_scale, true);
+    }
+
     speed_powerup_pos_checker(number) {
         if (this.speed_pos_random_number == 1) {
             this.speed_powerup_pos1 = true;
@@ -390,7 +761,7 @@ export class Demo3 extends Scene {
         }
         this.speed_powerup = true;
     }
-
+     
     make_speed_powerup(context, program_state, scale) {
         let model_transform = Mat4.identity();
         if (this.speed_powerup_pos1 === true) {
@@ -458,321 +829,68 @@ export class Demo3 extends Scene {
             }
         }
     }
-     
-    make_invincibility_powerup(context, program_state, scale) {
-        const size = 0.5*scale;
-        const x_width = 12.5*scale;
-        let invincibility_powerup = Mat4.scale(size,size,size);
-                
-        // Top invincibility powerups
-        let powerup_transform = Mat4.translation(x_width,0,0).times(invincibility_powerup);
-        this.shapes.pellet.draw(context,program_state, powerup_transform, this.materials.invincibility_powerup);
 
-        let powerup_transform2 = Mat4.translation(-x_width,0,0).times(invincibility_powerup);
-        this.shapes.pellet.draw(context,program_state, powerup_transform2, this.materials.invincibility_powerup);
+    texture_buffer_init(gl) {
+        // Depth Texture
+        this.lightDepthTexture = gl.createTexture();
+        // Bind it to TinyGraphics
+        this.light_depth_texture = new Buffered_Texture(this.lightDepthTexture);
 
-        // Bottom invincibility powerups
-        let powerup_transform3 = Mat4.translation(x_width,0,-20*scale).times(invincibility_powerup);
-        this.shapes.pellet.draw(context,program_state, powerup_transform3, this.materials.invincibility_powerup);
+        this.lightDepthTextureSize = LIGHT_DEPTH_TEX_SIZE;
+        gl.bindTexture(gl.TEXTURE_2D, this.lightDepthTexture);
+        gl.texImage2D(
+            gl.TEXTURE_2D,      // target
+            0,                  // mip level
+            gl.DEPTH_COMPONENT, // internal format
+            this.lightDepthTextureSize,   // width
+            this.lightDepthTextureSize,   // height
+            0,                  // border
+            gl.DEPTH_COMPONENT, // format
+            gl.UNSIGNED_INT,    // type
+            null);              // data
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-        let powerup_transform4 = Mat4.translation(-x_width,0,-20*scale).times(invincibility_powerup);
-        this.shapes.pellet.draw(context,program_state, powerup_transform4, this.materials.invincibility_powerup);
-    }
+        // Depth Texture Buffer
+        this.lightDepthFramebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.lightDepthFramebuffer);
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,       // target
+            gl.DEPTH_ATTACHMENT,  // attachment point
+            gl.TEXTURE_2D,        // texture target
+            this.lightDepthTexture,         // texture
+            0);                   // mip level
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-    make_pellets(context, program_state, scale) {
-        // Pellet size is 1/2 of regular sphere
-        const size = 0.2*scale;
-        let pellet_transform = Mat4.identity().times(Mat4.scale(size,size,size));
-        const x_dist = 0.5*scale;
-        const x_width = 12.5*scale;
-
-        // The row of pellets starting at pacman's origin
-        for (let i = x_dist+scale; i <= x_width-scale; i+=scale) {
-            if (i == 7.5*scale || i == 8.5*scale || i == 9.5*scale) continue;
-            // Positive x-axis
-            let model_transform = Mat4.translation(i,0,0).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-
-            // Negative x-axis (mirror in this case since equal length)
-            let model_transform2 = Mat4.translation(-i,0,0).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
-        }
-
-        // The long vertical from pacman's origin
-        for (let i = -3*scale; i <= 21*scale; i+=scale) {
-            // Positive x-axis
-            let model_transform = Mat4.translation(7.5*scale,0,-i).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-
-            // Negative x-axis (mirror in this case since equal length)
-            let model_transform2 = Mat4.translation(-7.5*scale,0,-i).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
-        }
-
-        // The long horizontal at the bottom
-        for (let i = 0.5*scale; i <= x_width; i+=scale) {
-            // Positive x-axis
-            let model_transform = Mat4.translation(i,0,6*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-
-            // Negative x-axis (mirror in this case since equal length)
-            let model_transform2 = Mat4.translation(-i,0,6*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
-        }
-
-        // The long horizontal above ghosts top
-        for (let i = x_dist; i <= x_width; i+=scale) {
-            if (i == 7.5*scale) continue;
-            // Positive x-axis
-            let model_transform = Mat4.translation(i,0,-18*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-
-            // Negative x-axis (mirror in this case since equal length)
-            let model_transform2 = Mat4.translation(-i,0,-18*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
-        }
-
-        // The topmost long horizontal
-        for (let i = x_dist+scale; i <= x_width; i+=scale) {
-            // Positive x-axis
-            let model_transform = Mat4.translation(i,0,-22*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-
-            // Negative x-axis (mirror in this case since equal length)
-            let model_transform2 = Mat4.translation(-i,0,-22*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
-        }
-
-        // The horizontal on the bottom of ghosts
-        for (let i = x_dist+scale; i <= x_width; i+=scale) {
-            if (i == 7.5*scale) continue;
-            // Positive x-axis
-            let model_transform = Mat4.translation(i,0,-3*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-
-            // Negative x-axis (mirror in this case since equal length)
-            let model_transform2 = Mat4.translation(-i,0,-3*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
-        }
-
-        // The top close to center long horizontal with the vertical wall in between
-        for (let i = x_dist+scale; i <= x_width; i+=scale) {
-            if (i == 7.5*scale || i == 5.5*scale || i == 6.5*scale) continue;
-            // Positive x-axis
-            let model_transform = Mat4.translation(i,0,-15*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-
-            // Negative x-axis (mirror in this case since equal length)
-            let model_transform2 = Mat4.translation(-i,0,-15*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);           
-        }
-
-        // The bottom middle long horizontal with the vertical wall in between
-        for (let i = x_dist+scale; i <= x_width; i+=scale) {
-            if (i == 7.5*scale || i == 5.5*scale || i == 6.5*scale) continue;
-            // Positive x-axis
-            let model_transform = Mat4.translation(i,0,3*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-
-            // Negative x-axis (mirror in this case since equal length)
-            let model_transform2 = Mat4.translation(-i,0,3*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);          
-        }
-
-        // Side verticals at top side
-        for (let i = 0; i < 6*scale; i+=scale) {
-            if (i == 2*scale || i == 4*scale) continue;
-            // Positive x-axis
-            let model_transform = Mat4.translation(x_width,0,-i-16*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-
-            // Negative x-axis (mirror in this case since equal length)
-            let model_transform2 = Mat4.translation(-x_width,0,-i-16*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
-        }
-
-        // Side verticals at top middle
-        for (let i = 0; i < 2*scale; i+=scale) {
-            // Positive x-axis
-            let model_transform = Mat4.translation(4.5*scale,0,-i-16*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-
-            // Negative x-axis (mirror in this case since equal length)
-            let model_transform2 = Mat4.translation(-4.5*scale,0,-i-16*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
-        }
-
-        // Topmost short center verticals
-        for (let i = 0; i < 3*scale; i+=scale) {
-            // Positive x-axis
-            let model_transform = Mat4.translation(1.5*scale,0,-i-19*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-
-            // Negative x-axis (mirror in this case since equal length)
-            let model_transform2 = Mat4.translation(-1.5*scale,0,-i-19*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
-        }
-
-        // Two sets of short center verticals
-        for (let i = 0; i < 8*scale; i+=scale) {
-            if (i == 2*scale) i+=4*scale;
-            // Positive x-axis
-            let model_transform = Mat4.translation(1.5*scale,0,i-2*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-
-            // Negative x-axis (mirror in this case since equal length)
-            let model_transform2 = Mat4.translation(-1.5*scale,0,i-2*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
-        }
-
-        // Short side verticals at bottom middle + side
-        for (let i = 0; i < 2*scale; i+=scale) {
-            // Positive x-axis
-            let model_transform = Mat4.translation(4.5*scale,0,i+scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-            this.shapes.pellet.draw(context, program_state, Mat4.translation(6*scale,0,0).times(model_transform), this.materials.pellet);
-
-            // Negative x-axis (mirror in this case since equal length)
-            let model_transform2 = Mat4.translation(-4.5*scale,0,i+scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);
-            this.shapes.pellet.draw(context, program_state, Mat4.translation(-6*scale,0,0).times(model_transform2), this.materials.pellet);
-        }
-
-        // Bottom sidemost verticals
-        for (let i = 0; i < 8*scale; i+=scale) {
-            if (i == 2*scale) i+=4*scale;
-            // Positive x-axis
-            let model_transform = Mat4.translation(x_width,0,i-2*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform, this.materials.pellet);
-
-            // Negative x-axis (mirror in this case since equal length)
-            let model_transform2 = Mat4.translation(-x_width,0,i-2*scale).times(pellet_transform);
-            this.shapes.pellet.draw(context, program_state, model_transform2, this.materials.pellet);         
-        }
-    }
-
-    make_wall(context, program_state, loc, length, maze_scale=1, vert=false, width=1){
-        width = width / 2;
-        length = length / 2;
-
-        let m;
-        if (vert == true){
-            m = Mat4.scale(width, 1, length);
-        }else{
-            m = Mat4.scale(length, 1, width);
-        }
-        this.shapes.cube.draw(context, program_state, Mat4.scale(maze_scale,1,maze_scale).times(loc).times(m), this.materials.wall);
-    }
-
-    make_side(context, program_state, maze_scale=1, left=false){
-        let mirror = 1;
-        if (left)
-            mirror = -1;
-        //top sideways T
-        let model_trans_wall_1 = Mat4.translation(mirror*6,0,-13.5);
-        let model_trans_wall_2 = Mat4.translation(mirror*4,0,-13.5);
-        //vert side
-        let model_trans_wall_3 = Mat4.translation(mirror*6,0,-6);
-        //horiz side
-        let model_trans_wall_4 = Mat4.translation(mirror*4.5,0,-1.5);
-        //upside down L
-        let model_trans_wall_5 = Mat4.translation(mirror*10,0,-1.5);
-        let model_trans_wall_6 = Mat4.translation(mirror*9,0,0.5);
-        //upside down T
-        let model_trans_wall_7 = Mat4.translation(mirror*7,0,4.5);
-        let model_trans_wall_8 = Mat4.translation(mirror*6,0,2.5);
-        //horiz top side
-        let model_trans_wall_9 = Mat4.translation(mirror*10,0,-16.5);
-        //top box
-        let model_trans_wall_10 = Mat4.translation(mirror*4.5,0,-20);
-        //top side box
-        let model_trans_wall_11 = Mat4.translation(mirror*10,0,-20);
-
-        //outer walls
-        //top jutout
-        let model_trans_wall_12 = Mat4.translation(mirror*11.25,0,-10.25);
-        let model_trans_wall_13 = Mat4.translation(mirror*11,0,-13.75);
-        let model_trans_wall_14 = Mat4.translation(mirror*8.75,0,-12);
-        //bottom jutout
-        let model_trans_wall_15 = Mat4.translation(mirror*11,0,-4.25);
-        let model_trans_wall_16 = Mat4.translation(mirror*11.25,0,-7.75);
-        let model_trans_wall_17 = Mat4.translation(mirror*8.75,0,-6);
-        //horiz out of side wall
-        let model_trans_wall_18 = Mat4.translation(mirror*12.5,0,1.5);
-        //top side wall
-        let model_trans_wall_19 = Mat4.translation(mirror*13.75,0,-18.5);
-        //bottom side wall
-        let model_trans_wall_20 = Mat4.translation(mirror*13.75,0,1.5);
-
-
-        this.make_wall(context, program_state, model_trans_wall_1, 7, maze_scale, true);
-        this.make_wall(context, program_state, model_trans_wall_2, 3, maze_scale);
-        this.make_wall(context, program_state, model_trans_wall_3, 4, maze_scale, true);
-        this.make_wall(context, program_state, model_trans_wall_4, 4, maze_scale);
-        this.make_wall(context, program_state, model_trans_wall_5, 3, maze_scale);
-        this.make_wall(context, program_state, model_trans_wall_6, 3, maze_scale, true);
-        this.make_wall(context, program_state, model_trans_wall_7, 9, maze_scale);
-        this.make_wall(context, program_state, model_trans_wall_8, 3, maze_scale, true);
-        this.make_wall(context, program_state, model_trans_wall_9, 3, maze_scale);
-
-        this.make_wall(context, program_state, model_trans_wall_10, 4, maze_scale, false, 2);
-        this.make_wall(context, program_state, model_trans_wall_11, 3, maze_scale, false, 2);
-
-        this.make_wall(context, program_state, model_trans_wall_12, 5.5, maze_scale, false, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_13, 5, maze_scale, false, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_14, 4, maze_scale, true, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_15, 5, maze_scale, false, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_16, 5.5, maze_scale, false, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_17, 4, maze_scale, true, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_18, 2, maze_scale);
-        this.make_wall(context, program_state, model_trans_wall_19, 10, maze_scale, true, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_20, 12, maze_scale, true, 0.5);
-       
-    }
-
-    make_walls(context, program_state, maze_scale){
-        //center structs
-        //T in front of pacman
-        let model_trans_wall_1 = Mat4.translation(0,0,-4.5);
-        let model_trans_wall_2 = Mat4.translation(0,0,-2.5);
-        //T behind pacman
-        let model_trans_wall_3 = Mat4.translation(0,0,1.5);
-        let model_trans_wall_4 = Mat4.translation(0,0,3.5);
-        //top most T
-        let model_trans_wall_5 = Mat4.translation(0,0,-16.5);
-        let model_trans_wall_6 = Mat4.translation(0,0,-14.5);
-        //ghost box
-        let model_trans_wall_7 = Mat4.translation(0,0,-7.25);
-        let model_trans_wall_8 = Mat4.translation(3.25,0,-9);
-        let model_trans_wall_9 = Mat4.translation(-3.25,0,-9);
-        let model_trans_wall_10 = Mat4.translation(0,0,-10.75); //change later to make gate
-        
-        //outer walls
-        //vert out of top wall
-        let model_trans_wall_11 = Mat4.translation(0,0,-21);
-        //top
-        let model_trans_wall_12 = Mat4.translation(0,0,-23.25);
-        //bottom
-        let model_trans_wall_13 = Mat4.translation(0,0,7.25);
-
-        this.make_wall(context, program_state, model_trans_wall_1, 7, maze_scale);
-        this.make_wall(context, program_state, model_trans_wall_2, 3, maze_scale, true);
-        this.make_wall(context, program_state, model_trans_wall_3, 7, maze_scale);
-        this.make_wall(context, program_state, model_trans_wall_4, 3, maze_scale, true);
-        this.make_wall(context, program_state, model_trans_wall_5, 7, maze_scale);
-        this.make_wall(context, program_state, model_trans_wall_6, 3, maze_scale, true);
-
-        this.make_wall(context, program_state, model_trans_wall_7, 7, maze_scale, false, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_8, 4, maze_scale, true, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_9, 4, maze_scale, true, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_10, 7, maze_scale, false, 0.5);
-
-        this.make_wall(context, program_state, model_trans_wall_11, 4, maze_scale, true);
-        this.make_wall(context, program_state, model_trans_wall_12, 27, maze_scale, false, 0.5);
-        this.make_wall(context, program_state, model_trans_wall_13, 27, maze_scale, false, 0.5);
-
-        this.make_side(context, program_state, maze_scale);
-        this.make_side(context, program_state, maze_scale, true);
+        // create a color texture of the same size as the depth texture
+        // see article why this is needed_
+        this.unusedTexture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, this.unusedTexture);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            this.lightDepthTextureSize,
+            this.lightDepthTextureSize,
+            0,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            null,
+        );
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        // attach it to the framebuffer
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,        // target
+            gl.COLOR_ATTACHMENT0,  // attachment point
+            gl.TEXTURE_2D,         // texture target
+            this.unusedTexture,         // texture
+            0);                    // mip level
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
 }
 
