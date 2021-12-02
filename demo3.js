@@ -275,7 +275,9 @@ export class Demo3 extends Scene {
         this.follow = true;
         this.scale = 2;
         this.score = 0;
+        this.score_update = true; 
         const speed = this.scale;
+
 
         this.speed_powerup = false;
         this.speed_powerup_pos1 = false;
@@ -312,22 +314,27 @@ export class Demo3 extends Scene {
         // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements.
         this.key_triggered_button("Forward", ["u"], () => {
             this.pacman.dir = 'f';
+            this.score_update = true; 
         });
         this.new_line();
         this.key_triggered_button("Right", ["k"], () => {
             this.pacman.dir = 'r';
+            this.score_update = true; 
         });
         //this.new_line();
         this.key_triggered_button("Left", ["h"], () => {
             this.pacman.dir = 'l';
+            this.score_update = true; 
         });
         this.new_line();
         this.key_triggered_button("Backward", ["j"], () => {
             this.pacman.dir = 'b';
+            this.score_update = true; 
         });
         this.new_line();
         this.key_triggered_button("Stop", ["m"], () => {
             this.pacman.dir = 's';
+            this.score_update = false; 
         });
         this.new_line(); this.new_line();
         this.key_triggered_button("Camera POV", ["c"], () => {
@@ -392,7 +399,10 @@ export class Demo3 extends Scene {
 
     display(context, program_state) {
         // display():  Called once per frame of animation.
-        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
+        const t = program_state.animation_time / 1000.0, dt = program_state.animation_delta_time / 1000;
+        if (Math.floor((t / 100000.0) % 2) == 0 && this.score_update){
+            this.score += 1; 
+        }
         const gl = context.context;
 
         if (!this.init_ok) {
@@ -486,7 +496,11 @@ export class Demo3 extends Scene {
 
         for (let i = 0; i < this.invinc_pellets.length; i++){
             pellet_transform = this.invinc_pellets[i];
-            this.shapes.pellet.draw(context, program_state, pellet_transform, this.materials.invincibility_powerup);
+            if (map){
+                this.shapes.pellet.draw(context, program_state, pellet_transform, this.materials.invincibility_powerup.override({ambient: 1, specularity: 0, diffusivity: 0}));
+            } else {
+                this.shapes.pellet.draw(context, program_state, pellet_transform, this.materials.invincibility_powerup);
+            } 
         }
     }
     
