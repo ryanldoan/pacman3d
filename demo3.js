@@ -259,7 +259,11 @@ export class Demo3 extends Scene {
             speed_powerup: new Material(new defs.Phong_Shader(),
                 {ambient: 0.3, diffusivity: 1, specularity: 1, color: hex_color("#00FF00")}),
             text_image: new Material(texture,
-                {ambient: 1, diffusivity: 0, specularity: 0, texture: new Texture("assets/text.png")})
+                {ambient: 1, diffusivity: 0, specularity: 0, texture: new Texture("assets/text.png")}),
+            wall_mm: new Material(new defs.Phong_Shader(),
+                {ambient: 0.4, diffusivity: 0, specularity: 0, color: hex_color("#4444CC")}),
+            pellet_mm: new Material(new defs.Phong_Shader(),
+                {ambient: 0.8, diffusivity: 0, specularity: 0, color: hex_color("#fff2c7")})
         }
 
         // For depth texture display
@@ -357,8 +361,8 @@ export class Demo3 extends Scene {
     }
     
     render(context, program_state, map=false){
-        this.draw_walls(context, program_state, this.scale);
-        this.draw_pellets(context, program_state);
+        this.draw_walls(context, program_state, this.scale, map);
+        this.draw_pellets(context, program_state, map);
         
         //const ghost_colors = ["FF8888","",""]
         let dir_R = Mat4.identity();
@@ -464,11 +468,15 @@ export class Demo3 extends Scene {
             );
     }
     
-    draw_pellets(context, program_state){
+    draw_pellets(context, program_state, map=false){
         let pellet_transform;
         for (let i = 0; i < this.pellets.length; i++){
             pellet_transform = this.pellets[i];
-            this.shapes.pellet.draw(context, program_state, pellet_transform, this.materials.pellet);
+            if (map) {
+                this.shapes.pellet.draw(context, program_state, pellet_transform, this.materials.pellet_mm);
+            } else {
+                this.shapes.pellet.draw(context, program_state, pellet_transform, this.materials.pellet);
+            }
         }
 
         for (let i = 0; i < this.invinc_pellets.length; i++){
@@ -619,7 +627,7 @@ export class Demo3 extends Scene {
         }
     }
 
-    draw_walls(context, program_state, maze_scale){
+    draw_walls(context, program_state, maze_scale, map=false){
         let m;
         for (let i = 0; i < this.walls.length; i++){
             const wall = this.walls[i];
@@ -627,8 +635,11 @@ export class Demo3 extends Scene {
                 m = Mat4.scale(wall.width, 1, wall.length);
             else
                 m = Mat4.scale(wall.length, 1, wall.width);
-
-            this.shapes.cube.draw(context, program_state, Mat4.scale(maze_scale,1,maze_scale).times(wall.center).times(m), this.materials.wall);
+            if (map) {
+                this.shapes.cube.draw(context, program_state, Mat4.scale(maze_scale,1,maze_scale).times(wall.center).times(m), this.materials.wall_mm);
+            } else {
+                this.shapes.cube.draw(context, program_state, Mat4.scale(maze_scale,1,maze_scale).times(wall.center).times(m), this.materials.wall);
+            }
         }
     }
 
