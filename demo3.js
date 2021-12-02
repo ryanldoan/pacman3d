@@ -703,7 +703,69 @@ export class Demo3 extends Scene {
         let model_trans_wall_19 = Mat4.translation(mirror*13.75,0,-18.5);
         //bottom side wall
         let model_trans_wall_20 = Mat4.translation(mirror*13.75,0,1.5);
+        
+        function Wall(loc, length, width = 1) {
+            this.loc = loc;
+            this.length = length;
+            this.width = width;
+        }
 
+        var walls_ds = [
+            new Wall(model_trans_wall_1, 7), new Wall(model_trans_wall_2, 3), new Wall(model_trans_wall_3, 4),
+            new Wall(model_trans_wall_4, 4), new Wall(model_trans_wall_5, 3), new Wall(model_trans_wall_6, 3),
+            new Wall(model_trans_wall_7, 9), new Wall(model_trans_wall_8, 3), new Wall(model_trans_wall_9, 3),
+            new Wall(model_trans_wall_10, 4, 2), new Wall(model_trans_wall_11, 3, 2),
+            new Wall(model_trans_wall_12, 5.5, 0.5), new Wall(model_trans_wall_13, 5, 0.5),
+            new Wall(model_trans_wall_14, 4, 0.5), new Wall(model_trans_wall_15, 5, 0.5),
+            new Wall(model_trans_wall_16, 5.5, 0.5), new Wall(model_trans_wall_17, 4, 0.5),
+            new Wall(model_trans_wall_18, 2), new Wall(model_trans_wall_19, 10, 0.5),
+            new Wall(model_trans_wall_20, 12, 0.5)
+        ];
+        
+        const pac = this.pacman;
+        let pac_r = pac.getRotationMatrix();
+
+        let trans_pac = this.pacman.model_transform.times(Mat4.inverse(pac_r));
+
+        //iterate through each wall
+        for (var i = 0; i < 20; i++)
+        {
+            //simpler variables:
+            let length = walls_ds[i].length;
+            let width = walls_ds[i].width;
+            let x_coord_wall = walls_ds[i].loc[0][3];
+            let x_coord_pac = trans_pac[0][3];
+            let z_coord_wall = walls_ds[i].loc[2][3];
+            let z_coord_pac = trans_pac[2][3];
+
+            //if x-coord and z-coord intersect with pacman's coords -- collision
+            //dividing length/2 gives range of collision from center point of each wall
+            if ((x_coord_pac > (x_coord_wall - length/2)) && (x_coord_pac < (x_coord_wall + length/2)) &&
+               ((z_coord_pac > (z_coord_wall - width/2)) && (z_coord_pac < (z_coord_wall + width/2))))
+               {
+                   console.log("1-Collision Detection");
+                   //this.pacman.dir = 's';
+               }
+        }
+                
+
+             /*if (((x_coord_pac > x_coord_wall - length/2) || ((x_coord_wall - length/2) > x_coord_pac)) {
+                     //collision detected
+                     console.log("1-Collision Detection");
+
+                     //this.pacman.model_transform = Mat4.translation(0,0,1);
+                     //this.updateMatrix(Mat4.translation(-2,0,0));
+                     //this.pacman.move(this.follow, 0);
+                 }
+             if (((z_coord_wall + length/2) > z_coord_pac) || ((z_coord_wall - length/2) > z_coord_pac)) {
+                     //collision detected
+                     console.log("2-Collision Detection");
+                     //trans_pac = Mat4.translation(0,0,1);
+                 }*/
+         
+        
+        //console.log(walls_ds[Object.keys(walls_ds)]);
+        //console.log(walls_ds[0]);
 
         this.make_wall(context, program_state, model_trans_wall_1, 7, maze_scale, true);
         this.make_wall(context, program_state, model_trans_wall_2, 3, maze_scale);
@@ -754,7 +816,7 @@ export class Demo3 extends Scene {
         let model_trans_wall_12 = Mat4.translation(0,0,-23.25);
         //bottom
         let model_trans_wall_13 = Mat4.translation(0,0,7.25);
-
+        
         this.make_wall(context, program_state, model_trans_wall_1, 7, maze_scale);
         this.make_wall(context, program_state, model_trans_wall_2, 3, maze_scale, true);
         this.make_wall(context, program_state, model_trans_wall_3, 7, maze_scale);
@@ -774,36 +836,79 @@ export class Demo3 extends Scene {
         this.make_side(context, program_state, maze_scale);
         this.make_side(context, program_state, maze_scale, true);
 
+        function Wall(loc, length, width = 1) {
+            this.loc = loc;
+            this.length = length;
+            this.width = width;
+        }
+
+        var walls_ds = [
+            new Wall(model_trans_wall_1, 7), new Wall(model_trans_wall_2, 3), new Wall(model_trans_wall_3, 7),
+            new Wall(model_trans_wall_4, 3), new Wall(model_trans_wall_5, 7), new Wall(model_trans_wall_6, 3),
+            new Wall(model_trans_wall_7, 7, 0.5), new Wall(model_trans_wall_8, 4, 0.5), new Wall(model_trans_wall_9, 4, 0.5),
+            new Wall(model_trans_wall_10, 7, 0.5), new Wall(model_trans_wall_11, 4),
+            new Wall(model_trans_wall_12, 27, 0.5), new Wall(model_trans_wall_13, 27, 0.5),
+        ];
+        
         const pac = this.pacman;
         let pac_r = pac.getRotationMatrix();
 
         let trans_pac = this.pacman.model_transform.times(Mat4.inverse(pac_r));
 
-        //store all walls into an array
-        const walls = [model_trans_wall_1, model_trans_wall_2, model_trans_wall_3, model_trans_wall_4,
-                       model_trans_wall_5, model_trans_wall_6, model_trans_wall_7, model_trans_wall_8,
-                       model_trans_wall_9, model_trans_wall_10, model_trans_wall_11, model_trans_wall_12,
-                       model_trans_wall_13];
+        //iterate through each wall
+        for (var i = 0; i < 13; i++)
+        {
+            //simpler variables:
+            let length = walls_ds[i].length;
+            let width = walls_ds[i].width;
+            let x_coord_wall = walls_ds[i].loc[0][3];
+            let x_coord_pac = trans_pac[0][3];
+            let z_coord_wall = walls_ds[i].loc[2][3];
+            let z_coord_pac = trans_pac[2][3];
+
+            //if x-coord and z-coord intersect with pacman's coords -- collision
+            //dividing length/2 gives range of collision from center point of each wall
+            if ((x_coord_pac > (x_coord_wall - length/2)) && (x_coord_pac < (x_coord_wall + length/2)) &&
+               ((z_coord_pac > (z_coord_wall - width/2)) && (z_coord_pac < (z_coord_wall + width/2))))
+               {
+                   console.log("2-Collision Detection");
+                   console.log(walls_ds[i])
+                   this.pacman.dir = 's';
+               }
+        }
+        console.log(trans_pac);
+
+//         const pac = this.pacman;
+//         let pac_r = pac.getRotationMatrix();
+
+//         let trans_pac = this.pacman.model_transform.times(Mat4.inverse(pac_r));
+
+//         //store all walls into an array
+//         const walls = [model_trans_wall_1, model_trans_wall_2, model_trans_wall_3, model_trans_wall_4,
+//                        model_trans_wall_5, model_trans_wall_6, model_trans_wall_7, model_trans_wall_8,
+//                        model_trans_wall_9, model_trans_wall_10, model_trans_wall_11, model_trans_wall_12,
+//                        model_trans_wall_13];
         
         //[0][3] holds x values (moving forward (-) and back (+))
         //[2][3] holds z values (moving left (-) and right (+))
-        for (var i = 0; i < 13; i++)
-        {
-            //pacman is in the wall x-coordinate range by +- 1
-            if ((trans_pac[0][3] > (walls[i][0][3] - 1)) &&
-                (trans_pac[0][3] < (walls[i][0][3] + 1)))
-                {
-                //pacman is in the wall z-coordinate range by +- 1
-                if ((trans_pac[2][3] > (walls[i][2][3] - 1)) &&
-                    (trans_pac[2][3] < (walls[i][2][3] + 1)))
-                    {
-                    //collision is detected
-                    console.log("Collision Detection");
-                    this.pacman.dir = 's'; //error -- shouldn't actually pause game
-                }
-            }
-        }
-        console.log(trans_pac); 
+//         for (var i = 0; i < 13; i++)
+//         {
+//             //pacman is in the wall x-coordinate range by +- 1
+//             if ((trans_pac[0][3] > (walls[i][0][3] - 1)) &&
+//                 (trans_pac[0][3] < (walls[i][0][3] + 1)))
+//                 {
+//                 //pacman is in the wall z-coordinate range by +- 1
+//                 if ((trans_pac[2][3] > (walls[i][2][3] - 1)) &&
+//                     (trans_pac[2][3] < (walls[i][2][3] + 1)))
+//                     {
+//                     //collision is detected
+//                     console.log("Collision Detection");
+//                     //this.pacman.dir = 's'; //error -- shouldn't actually pause game
+//                 }
+//             }
+//         }
+//         console.log(trans_pac); 
+            //console.log(model_trans_wall_2);
     }
 }
 
