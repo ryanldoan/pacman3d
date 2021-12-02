@@ -275,7 +275,7 @@ export class Demo3 extends Scene {
         this.follow = true;
         this.scale = 2;
         this.score = 0;
-        this.score_update = true; 
+        this.score_update = false; 
         const speed = this.scale;
 
 
