@@ -275,6 +275,7 @@ export class Demo3 extends Scene {
         this.follow = true;
         this.scale = 2;
         this.score = 0;
+        this.score_update_dt = 0;
         this.score_update = false; 
         const speed = this.scale;
 
@@ -400,8 +401,13 @@ export class Demo3 extends Scene {
     display(context, program_state) {
         // display():  Called once per frame of animation.
         const t = program_state.animation_time / 1000.0, dt = program_state.animation_delta_time / 1000;
-        if (Math.floor((t / 100000.0) % 2) == 0 && this.score_update){
-            this.score += 1; 
+
+        if (this.score_update){
+            this.score_update_dt += dt;
+            if (this.score_update_dt >= 1){
+                this.score += 1;
+                this.score_update_dt = 0;
+            }
         }
         const gl = context.context;
 
