@@ -261,7 +261,7 @@ export class Demo3 extends Scene {
             text_image: new Material(texture,
                 {ambient: 1, diffusivity: 0, specularity: 0, texture: new Texture("assets/text.png")}),
             wall_mm: new Material(new defs.Phong_Shader(),
-                {ambient: 0.4, diffusivity: 0, specularity: 0, color: hex_color("#4444CC")}),
+                {ambient: 0.4, diffusivity: 0, specularity: 0, color: hex_color("#1414e0")}),
             pellet_mm: new Material(new defs.Phong_Shader(),
                 {ambient: 0.8, diffusivity: 0, specularity: 0, color: hex_color("#fff2c7")})
         }
@@ -370,7 +370,12 @@ export class Demo3 extends Scene {
             const runner = this.alive[i];
             if (!this.follow || i > 0)
                 dir_R = runner.getRotationMatrix();
-            runner.model_info.shape.draw(context, program_state, runner.model_transform.times(dir_R).times(runner.upright_R), runner.model_info.material);
+
+            if (map){
+                runner.model_info.shape.draw(context, program_state, runner.model_transform.times(dir_R).times(runner.upright_R), runner.model_info.material.override({ambient: 1, specularity: 0, diffusivity: 0}));
+            } else {
+                runner.model_info.shape.draw(context, program_state, runner.model_transform.times(dir_R).times(runner.upright_R), runner.model_info.material);
+            } 
         }
 
         if (!map){
