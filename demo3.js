@@ -449,6 +449,7 @@ export class Demo3 extends Scene {
             }else
                 runner.move(this.follow, dt);
         }
+        this.collision_detection();
 
         let desired;
         if (this.follow)
@@ -487,6 +488,37 @@ export class Demo3 extends Scene {
                 ),
                 this.depth_tex.override({texture: this.lightDepthTexture})
             );
+    }
+
+    collision_detection(){
+        //iterate through each wall
+        for (var i = 0; i < this.walls.length; i++)
+        {
+            const wall = this.walls[i];
+            let wall_x = wall.center[0][3]*this.scale;
+            let wall_z = wall.center[2][3]*this.scale;
+
+            const pacman_center = this.pacman.model_transform.times(Mat4.inverse(this.pacman.getRotationMatrix()));
+            let pac_x = pacman_center[0][3];
+            let pac_z = pacman_center[2][3];
+
+            let x_len = this.scale;
+            let z_len = this.scale;
+            if (wall.vert){
+                x_len *= wall.width;
+                z_len *= wall.length;
+            }else{
+                x_len *= wall.length;
+                z_len *= wall.width;
+            }
+            
+            if ((pac_x > (wall_x - x_len)) && (pac_x < (wall_x + x_len)) && ((pac_z > (wall_z - z_len)) && (pac_z < (wall_z + z_len))))
+            {
+                console.log("COLLISION!");
+                //console.log(walls_ds[1])
+                this.pacman.dir = 's';
+            }
+        }
     }
     
     draw_pellets(context, program_state, map=false){
