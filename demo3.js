@@ -10,6 +10,9 @@ import {Text_Line} from './examples/text-demo.js';
 import {Color_Phong_Shader, Shadow_Textured_Phong_Shader,
     Depth_Texture_Shader_2D, Buffered_Texture, LIGHT_DEPTH_TEX_SIZE} from './examples/shadow-demo-shaders.js'
 
+var speedCollide = false;
+var activeSpeedPowerup = 0;
+
 // 2D shape, to display the texture buffer
 const Square =
     class Square extends tiny.Vertex_Buffer {
@@ -40,6 +43,9 @@ class Maze_Runner {
         this.upright_R = rm;
         this.maze_scale = maze_scale;
         this.model_transform = Mat4.rotation(this.getAngle(this.abs_dir),0,1,0).times(loc_transform);
+        this.timer = 0;
+        this.collide = false;
+        this.savedSpeed = speed;
     }
     
     check_bounds(follow){
@@ -75,6 +81,64 @@ class Maze_Runner {
         this.check_bounds(follow);
 
         return this.model_transform;
+    }
+
+    speed_collision_helper(speed_transform, my_x, my_z) {
+        const speed_x = speed_transform[0][3];
+        const speed_z = speed_transform[2][3];
+
+        if ((speed_x >= (my_x - 1)) && (speed_x <= (my_x + 1)) &&
+            ((speed_z >= (my_z - 1)) && (speed_z <= (my_z + 1)))) {
+            this.collide = true;
+        }
+    }
+
+    speed_collision_detection() {
+        if (activeSpeedPowerup != 0) {
+        const my_center = this.model_transform;
+        const my_x = my_center[0][3];
+        const my_z = my_center[2][3];
+
+        let speed_transform;
+
+        switch (activeSpeedPowerup) {
+            case 1:
+                    speed_transform = Mat4.translation(-1.5*this.maze_scale,0,4.5*this.maze_scale);
+                    this.speed_collision_helper(speed_transform, my_x, my_z);
+            case 2:
+                    speed_transform = Mat4.translation(1.5*this.maze_scale,0,4.5*this.maze_scale);
+                    this.speed_collision_helper(speed_transform, my_x, my_z);
+            case 3:
+                    speed_transform = Mat4.translation(1.5*this.maze_scale,0,-20*this.maze_scale);
+                    this.speed_collision_helper(speed_transform, my_x, my_z);
+            case 4:
+                    speed_transform = Mat4.translation(-1.5*this.maze_scale,0,-20*this.maze_scale);
+                    this.speed_collision_helper(speed_transform, my_x, my_z);
+        }
+
+        if (this.collide === true) {
+            this.speed = 4;
+            this.timer += 1;
+            speedCollide = true;
+            this.model_info.material.color = hex_color("#00FF00");
+
+            if (this.timer > 200) {
+                if (this.timer % 10 === 0) {
+                    this.model_info.material.color = hex_color("#FFFF00");
+                }
+                else
+                    this.model_info.material.color = hex_color("#00FF00");
+            }
+
+            if (this.timer === 350) {
+                this.collide = false;
+                this.speed = this.savedSpeed;
+                this.timer = 0;
+                speedCollide = false;
+                this.model_info.material.color = hex_color("#FFFF00");
+            }
+        }
+                }
     }
 
     collision_detection(arr, type='wall'){
@@ -429,10 +493,9 @@ export class Demo3 extends Scene {
         }
 
         var random = Math.floor((Math.random()*10000));
-        console.log(random);
         if (!map){
             // Speed Powerup Generation
-            if (this.speed_powerup === false && random % 500 === 0)
+            if (this.speed_powerup === false && random % 50 === 0)
                 this.speed_powerup_pos_checker();
             this.make_speed_powerup(context, program_state, this.scale);
 
@@ -446,10 +509,10 @@ export class Demo3 extends Scene {
         // display():  Called once per frame of animation.
         const t = program_state.animation_time / 1000.0, dt = program_state.animation_delta_time / 1000;
         // If the score is over some threshold, display game over 
-        if (this.score > 10){
+        if (this.score > 10000){
             this.alive = false;   
         }
-
+        
         if (!this.alive){
             const gameover_transform = program_state.camera_transform.times(Mat4.translation(-3,0, -5)).times(Mat4.scale(0.5, 0.5, 0.5));//(Mat4.rotation(Math.PI/2, -1,0,0));
             this.disp_text(context, program_state, gameover_transform, "GAME OVER");
@@ -517,6 +580,10 @@ export class Demo3 extends Scene {
                 }
                 runner.updateMatrix(T);
                 runner.dir = 's';
+            }
+
+            if (runner.speed_collision_detection()) {
+                console.log("hi");
             }
                 
         }
@@ -860,83 +927,100 @@ export class Demo3 extends Scene {
         this.make_side(maze_scale, true);
     }
 
-    speed_powerup_pos_checker(number) {
+    speed_powerup_pos_checker() {
         if (this.speed_pos_random_number == 1) {
+            activeSpeedPowerup = 1;
             this.speed_powerup_pos1 = true;
         } else if (this.speed_pos_random_number == 2) {
+            activeSpeedPowerup = 2;
             this.speed_powerup_pos2 = true;
         } else if (this.speed_pos_random_number == 3) {
+            activeSpeedPowerup = 3;
             this.speed_powerup_pos3 = true;
         } else if (this.speed_pos_random_number == 4) {
+            activeSpeedPowerup = 4;
             this.speed_powerup_pos4 = true;
         }
         this.speed_powerup = true;
     }
-     
+
+
     make_speed_powerup(context, program_state, scale) {
         let model_transform = Mat4.identity();
         if (this.speed_powerup_pos1 === true) {
             this.scale_factor -= .008;
             let speed_transform1 = model_transform.times(Mat4.translation(-1.5*scale,0,4.5*scale)).times(Mat4.scale(this.scale_factor, this.scale_factor, this.scale_factor));
             
+            if (speedCollide === false) {
             if (this.scale_factor > .4) 
                 this.shapes.cube.draw(context,program_state, speed_transform1, this.materials.speed_powerup);
             else
                 this.shapes.cube.draw(context,program_state, speed_transform1, this.materials.speed_powerup.override({color: hex_color("FF0000")}));
-
-            if (this.scale_factor < 0) {
+            }
+            
+            if (this.scale_factor < 0 || (speedCollide === true && activeSpeedPowerup === 1)) {
                 this.speed_powerup_pos1 = false;
                 this.speed_powerup = false;
                 this.scale_factor = 1;
                 this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
+                speedCollide = false;
             }
 
         } else if (this.speed_powerup_pos2 === true) {
             this.scale_factor -= .008;
             let speed_transform2 = model_transform.times(Mat4.translation(1.5*scale,0,4.5*scale)).times(Mat4.scale(this.scale_factor, this.scale_factor, this.scale_factor));;
-
+            
+            if (speedCollide === false) {
             if (this.scale_factor > .4) 
                 this.shapes.cube.draw(context,program_state, speed_transform2, this.materials.speed_powerup);
             else
                 this.shapes.cube.draw(context,program_state, speed_transform2, this.materials.speed_powerup.override({color: hex_color("FF0000")}));
+            }
 
-            if (this.scale_factor < 0) {
+            if (this.scale_factor < 0 || (speedCollide === true && activeSpeedPowerup === 2)) {
                 this.speed_powerup_pos2 = false;
                 this.speed_powerup = false;
                 this.scale_factor = 1;
                 this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
+                speedCollide = false;
             }
             
         } else if (this.speed_powerup_pos3 === true) {
             this.scale_factor -= .008;
             let speed_transform3 = model_transform.times(Mat4.translation(1.5*scale,0,-20*scale)).times(Mat4.scale(this.scale_factor, this.scale_factor, this.scale_factor));;
             
+            if (speedCollide === false) {
             if (this.scale_factor > .4) 
                 this.shapes.cube.draw(context,program_state, speed_transform3, this.materials.speed_powerup);
             else
                 this.shapes.cube.draw(context,program_state, speed_transform3, this.materials.speed_powerup.override({color: hex_color("FF0000")}));
+            }
 
-            if (this.scale_factor < 0) {
+            if (this.scale_factor < 0 || (speedCollide === true && activeSpeedPowerup === 3)) {
                 this.speed_powerup_pos3 = false;
                 this.speed_powerup = false;
                 this.scale_factor = 1;
                 this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
+                speedCollide = false;
             }
             
         } else if (this.speed_powerup_pos4 === true) {
             this.scale_factor -= .008;
             let speed_transform4 = model_transform.times(Mat4.translation(-1.5*scale,0,-20*scale)).times(Mat4.scale(this.scale_factor, this.scale_factor, this.scale_factor));;
             
+            if (speedCollide === false) {
             if (this.scale_factor > .4) 
                 this.shapes.cube.draw(context,program_state, speed_transform4, this.materials.speed_powerup);
             else
                 this.shapes.cube.draw(context,program_state, speed_transform4, this.materials.speed_powerup.override({color: hex_color("FF0000")}));
+            }
 
-            if (this.scale_factor < 0) {
+            if (this.scale_factor < 0 || (speedCollide === true && activeSpeedPowerup === 4)) {
                 this.speed_powerup_pos4 = false;
                 this.speed_powerup = false;
                 this.scale_factor = 1;
                 this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
+                speedCollide = false;
             }
         }
     }
