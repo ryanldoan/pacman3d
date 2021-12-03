@@ -579,7 +579,8 @@ export class Demo3 extends Scene {
             //ghost collision with pacman
             if (i>0 && runner.collision_detection([this.pacman], 'pacman')){
                 if (this.invincible_time > 0){
-                    this.runners.splice(i,1);
+                    runner.model_transform = Mat4.translation(0,0,-9.25*this.scale);
+                    runner.dir = 's';
                 }else this.alive = false;
             }
 
