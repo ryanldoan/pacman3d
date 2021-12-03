@@ -77,6 +77,47 @@ class Maze_Runner {
         return this.model_transform;
     }
 
+    collision_detection(arr, type='wall'){
+        //iterate through each wall
+        const my_center = this.model_transform;
+        const my_x = my_center[0][3];
+        const my_z = my_center[2][3];
+
+        for (var i = 0; i < arr.length; i++)
+        {
+            const wall = arr[i];
+            if (this.wall_collision_detection(my_x, my_z, wall))
+                return true;
+            
+        }
+        return false;
+    }
+
+    wall_collision_detection(my_x, my_z, wall){
+        let wall_x = wall.center[0][3]*this.maze_scale;
+        let wall_z = wall.center[2][3]*this.maze_scale;
+
+        let x_len = this.maze_scale;
+        let z_len = this.maze_scale;
+        if (wall.vert){
+            x_len *= wall.width;
+            z_len *= wall.length;
+        }else{
+            x_len *= wall.length;
+            z_len *= wall.width;
+        }
+
+        for (let x=my_x-1; x <= my_x+1; x+=2){
+            for (let z=my_z-1; z <= my_z+1; z+=2){
+                if ((x >= (wall_x - x_len)) && (x <= (wall_x + x_len)) &&
+                    ((z >= (wall_z - z_len)) && (z <= (wall_z + z_len))))
+                {
+                    return true;
+                }
+            }
+        }
+    }
+
     updateMatrix(m){
         this.model_transform = (this.model_transform).times(m);
     }
@@ -441,15 +482,32 @@ export class Demo3 extends Scene {
         program_state.lights = [new Light(light_positions[0], white, bright)];
 
         // Move runners
-        for (let i = 0; i < this.alive.length; ++i) {
+        for (let i = 0; i < 1; ++i) {
             const runner = this.alive[i];
-            if (i > 0 && this.pacman.dir==='s'){
+            runner.move(this.follow, dt);
+            //if i>0 (ghosts), check collision with pacman
+            //walls
+            if (runner.collision_detection(this.walls, 'walls')){
+                const move = -0.05-runner.speed*0.05;
+                let T;
+                switch(runner.dir){
+                    case 'l': T = Mat4.translation(-move,0,0);
+                        break;
+                    case 'r': T = Mat4.translation(move,0,0);
+                        break;
+                    case 'f': T = Mat4.translation(0,0,-move);
+                        break;
+                    case 'b': T = Mat4.translation(0,0,move);
+                        break;
+                    default: T = Mat4.translation(0,0,0);
+                        break;
+                }
+                runner.updateMatrix(T);
                 runner.dir = 's';
-                runner.move(this.follow, 0);
-            }else
-                runner.move(this.follow, dt);
+            }
+                
         }
-        this.wall_collision_detection();
+        //this.wall_collision_detection();
 
         let desired;
         if (this.follow)
@@ -489,61 +547,7 @@ export class Demo3 extends Scene {
                 this.depth_tex.override({texture: this.lightDepthTexture})
             );
     }
-
-    wall_collision_detection(){
-        //iterate through each wall
-        for (var i = 0; i < this.walls.length; i++)
-        {
-            const wall = this.walls[i];
-            let wall_x = wall.center[0][3]*this.scale;
-            let wall_z = wall.center[2][3]*this.scale;
-
-            const pacman_center = this.pacman.model_transform.times(Mat4.inverse(this.pacman.getRotationMatrix()));
-            let pac_x = pacman_center[0][3];
-            let pac_z = pacman_center[2][3];
-
-            let x_len = this.scale;
-            let z_len = this.scale;
-            if (wall.vert){
-                x_len *= wall.width;
-                z_len *= wall.length;
-            }else{
-                x_len *= wall.length;
-                z_len *= wall.width;
-            }
-
-            for (let x=pac_x-1; x <= pac_x+1; x+=2){
-                for (let z=pac_z-1; z <= pac_z+1; z+=2){
-                    //console.log('Wall', i, ':',x,z,wall_x, wall_z, x_len, z_len);
-                    this.wall_collision_checker(x, z, wall_x, wall_z, x_len, z_len);
-                }
-            }
-        }
-    }
-
-    wall_collision_checker(pac_x, pac_z, wall_x, wall_z, x_len, z_len){
-        if ((pac_x >= (wall_x - x_len)) && (pac_x <= (wall_x + x_len)) &&
-            ((pac_z >= (wall_z - z_len)) && (pac_z <= (wall_z + z_len))))
-        {
-            const move = -0.05-this.pacman.speed*0.05;
-            let T;
-            switch(this.pacman.dir){
-                case 'l': T = Mat4.translation(-move,0,0);
-                    break;
-                case 'r': T = Mat4.translation(move,0,0);
-                    break;
-                case 'f': T = Mat4.translation(0,0,-move);
-                    break;
-                case 'b': T = Mat4.translation(0,0,move);
-                    break;
-                default: T = Mat4.translation(0,0,0);
-                    break;
-            }
-            this.pacman.updateMatrix(T);
-            this.pacman.dir = 's';
-            return true;
-        }else return false;
-    }
+    
     
     draw_pellets(context, program_state, map=false){
         let pellet_transform;
