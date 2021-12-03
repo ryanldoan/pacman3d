@@ -401,6 +401,7 @@ export class Demo3 extends Scene {
     display(context, program_state) {
         // display():  Called once per frame of animation.
         const t = program_state.animation_time / 1000.0, dt = program_state.animation_delta_time / 1000;
+        // If the score is over some threshold, display game over 
         if (this.score > 10){
             const gameover_transform = program_state.camera_transform.times(Mat4.translation(-3,0, -5)).times(Mat4.scale(0.5, 0.5, 0.5));//(Mat4.rotation(Math.PI/2, -1,0,0));
             this.disp_text(context, program_state, gameover_transform, "GAME OVER");
