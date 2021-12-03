@@ -319,6 +319,7 @@ export class Demo3 extends Scene {
         this.score_update_dt = 0;
         this.score_update = false; 
         const speed = this.scale;
+        this.alive = true; 
 
 
         this.speed_powerup = false;
@@ -401,7 +402,7 @@ export class Demo3 extends Scene {
 
     disp_text(context, program_state, M, str, line_spacing=2){
         const multi_line_string = str.split('\n');
-        for (let line of multi_line_string.slice(0, 30)) {             // Assign the string to Text_String, and then draw it.
+        for (let line of multi_line_string.slice(0, 10)) {             // Assign the string to Text_String, and then draw it.
             this.shapes.text.set_string(line, context.context);
             this.shapes.text.draw(context, program_state, M, this.materials.text_image);
             // Move our basis down a line.
@@ -427,9 +428,11 @@ export class Demo3 extends Scene {
             } 
         }
 
+        var random = Math.floor((Math.random()*10000));
+        console.log(random);
         if (!map){
             // Speed Powerup Generation
-            if (this.speed_powerup === false)
+            if (this.speed_powerup === false && random % 500 === 0)
                 this.speed_powerup_pos_checker();
             this.make_speed_powerup(context, program_state, this.scale);
 
@@ -442,6 +445,16 @@ export class Demo3 extends Scene {
     display(context, program_state) {
         // display():  Called once per frame of animation.
         const t = program_state.animation_time / 1000.0, dt = program_state.animation_delta_time / 1000;
+        // If the score is over some threshold, display game over 
+        if (this.score > 10){
+            this.alive = false;   
+        }
+
+        if (!this.alive){
+            const gameover_transform = program_state.camera_transform.times(Mat4.translation(-3,0, -5)).times(Mat4.scale(0.5, 0.5, 0.5));//(Mat4.rotation(Math.PI/2, -1,0,0));
+            this.disp_text(context, program_state, gameover_transform, "GAME OVER");
+            return;
+        }
 
         if (this.score_update){
             this.score_update_dt += dt;
@@ -523,9 +536,11 @@ export class Demo3 extends Scene {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         
         const smoothed_pacman_view = Mat4.inverse(desired).times(Mat4.inverse(this.pov1_matrix));
-        const view_mat = Mat4.inverse(smoothed_pacman_view.times(Mat4.translation(0,15*this.scale,0)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
-        program_state.view_mat = view_mat;
-        program_state.projection_transform = Mat4.perspective(Math.PI / 3, 1.3, 2, 500);
+        // const view_mat = Mat4.inverse(smoothed_pacman_view.times(Mat4.translation(0,15*this.scale,0)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
+        // program_state.view_mat = view_mat;
+        let view_mat = Mat4.look_at(vec3(0, 27*this.scale, -1*this.scale), vec3(0, 0, -5*this.scale), vec3(0, 0, -1));
+        program_state.view_mat =  view_mat; 
+        program_state.projection_transform = Mat4.perspective(Math.PI / 3, 1, 2, 500);
         //program_state.set_camera(view_mat);
         this.render(context, program_state, true);
 
@@ -542,7 +557,7 @@ export class Demo3 extends Scene {
         if (this.follow)
             this.shapes.square_2d.draw(context, program_state,
                 Mat4.translation(-.99, .26, 0).times(
-                Mat4.scale(0.5, 0.4 * gl.canvas.width / gl.canvas.height, 1)
+                Mat4.scale(0.35, 0.4 * gl.canvas.width / gl.canvas.height, 1)
                 ),
                 this.depth_tex.override({texture: this.lightDepthTexture})
             );
