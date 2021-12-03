@@ -485,7 +485,7 @@ export class Demo3 extends Scene {
 
             let material = runner.model_info.material;
             if (i>0 && this.invincible_time > 0)
-                material = material.override({color: hex_color("5555FF")});
+                material = material.override({color: color(0.25+1/this.invincible_time,0.25+1/this.invincible_time,1,1)});
                 
             if (map){
                 runner.model_info.shape.draw(context, program_state, runner.model_transform.times(dir_R).times(runner.upright_R), material.override({ambient: 1, specularity: 0, diffusivity: 0}));
