@@ -361,19 +361,16 @@ class Ghost extends Maze_Runner {
                 {ambient: 0.7, color: hex_color("#CCC0C0")}),
         }
         //Ghost starts at world origin, begin facing forward
-        super(model_info, loc_transform, Mat4.rotation(Math.PI,0,1,0).times(Mat4.rotation(-Math.PI/6,1,0,0)).times(Mat4.scale(maze_scale/2,maze_scale/2,maze_scale/2)), maze_scale, speed, 's');
-        this.turn_dt = 2;
+        super(model_info, loc_transform, Mat4.rotation(Math.PI,0,1,0).times(Mat4.rotation(-Math.PI/6,1,0,0)).times(Mat4.scale(maze_scale/2,maze_scale/2,maze_scale/2)), maze_scale, speed, 'f');
+        this.turn_dt = 0;
     }
 
     move(follow, dt){
-        let turn_t = 3+Math.random()*4;
+        let turn_t = 2+Math.random()*5;
         if (this.turn_dt > turn_t || this.dir === 's'){
             this.turn_dt = 0;
             let dir;
-            if (this.dir === 's')
-                dir = Math.floor(Math.random()*3)+1;
-            else
-                dir = Math.floor(Math.random()*4);
+            dir = Math.floor(Math.random()*4);
             switch(dir){
                 case 0:
                     this.dir = 'f';
@@ -676,7 +673,8 @@ export class Demo3 extends Scene {
             if (i>0 && runner.collision_detection([this.pacman], 'pacman')){
                 if (this.invincible_time > 0){
                     runner.model_transform = Mat4.translation(0,0,-9.25*this.scale);
-                    runner.dir = 's';
+                    runner.turn_dt = 0;
+                    runner.dir = 'f';
                 }else this.alive = false;
             }
 
