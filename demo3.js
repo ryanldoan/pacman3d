@@ -235,8 +235,8 @@ class Maze_Runner {
             z_len *= wall.width;
         }
 
-        for (let x=my_x-1; x <= my_x+1; x+=2){
-            for (let z=my_z-1; z <= my_z+1; z+=2){
+        for (let x=my_x-1; x <= my_x+1; x++){
+            for (let z=my_z-1; z <= my_z+1; z++){
                 if ((x >= (wall_x - x_len)) && (x <= (wall_x + x_len)) &&
                     ((z >= (wall_z - z_len)) && (z <= (wall_z + z_len))))
                 {
