@@ -557,9 +557,6 @@ export class Demo3 extends Scene {
             if (this.invincible_time > 0)
                 this.invincibleColorTimer+=1;
 
-            if (this.invincible_time === 0) {
-                console.log(this.invincibleColorTimer);
-            }
 
             if (i>0 && this.invincible_time > 0) {
 
@@ -708,7 +705,7 @@ export class Demo3 extends Scene {
             this.score += 10;
         if (this.pacman.collision_detection(this.invinc_pellets, 'invinc_pellet', true)){
             this.score += 50;
-            this.invincible_time += 10;
+            this.invincible_time = 10;
         }
         this.invincible_time = Math.max(0,this.invincible_time-dt);
 
