@@ -576,6 +576,9 @@ export class Demo3 extends Scene {
                 else 
                     material = material.override({color: color(0,0,1,1)});
             }
+
+            if (this.invincibleColorTimer === 4720)
+                this.invincibleColorTimer = 0;
                 
             //console.log(this.invincible_time);
             if (map){
