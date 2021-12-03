@@ -68,7 +68,7 @@ class Maze_Runner {
     }
 
     move(follow, dt){
-        const move = -0.05-this.speed*0.05;
+        const move = -0.1-this.speed*0.05;
         let T = this.getTransMatrix(move, follow);
         this.updateMatrix(T);
 
@@ -83,14 +83,49 @@ class Maze_Runner {
         const my_x = my_center[0][3];
         const my_z = my_center[2][3];
 
-        for (var i = 0; i < arr.length; i++)
-        {
-            const wall = arr[i];
-            if (this.wall_collision_detection(my_x, my_z, wall))
-                return true;
+        let detector;
+        switch(type){
+            case 'wall':
+                detector = (my_x, my_z, obj) => {return this.wall_collision_detection(my_x, my_z, obj)};
+                break;
+            case 'pellet':
+            case 'invinc_pellet':
+            case 'pacman':
+                detector = (my_x, my_z, obj) => {return this.pacman_collision_detection(my_x, my_z, obj)};
+                break;
+            default:
+                console.log('Invalid type');
+                break;
             
         }
+
+        for (var i = 0; i < arr.length; i++)
+        {
+            const obj = arr[i];
+            if ( detector(my_x, my_z, obj) )
+                return true;
+        }
         return false;
+    }
+
+    pacman_collision_detection(my_x, my_z, pacman){
+        let pac_x = pacman.model_transform[0][3];
+        let pac_z = pacman.model_transform[2][3];
+        const ghost_r = 0.8;
+        for (let x=my_x-ghost_r; x <= my_x+ghost_r; x+=2*ghost_r){
+            for (let z=my_z-ghost_r; z <= my_z+ghost_r; z+=2*ghost_r){
+                if ((x >= (pac_x - 1)) && (x <= (pac_x + 1)) &&
+                    ((z >= (pac_z - 1)) && (z <= (pac_z + 1))))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    pellet_collision_detection(my_x, my_z, pellet_transform, r){
     }
 
     wall_collision_detection(my_x, my_z, wall){
@@ -238,10 +273,14 @@ class Ghost extends Maze_Runner {
     }
 
     move(follow, dt){
-        let turn_t = 2+Math.random()*4;
-        if (this.turn_dt > turn_t){
-            this.turn_dt = 0
-            let dir = Math.floor(Math.random()*4);
+        let turn_t = 3+Math.random()*4;
+        if (this.turn_dt > turn_t || this.dir === 's'){
+            this.turn_dt = 0;
+            let dir;
+            if (this.dir === 's')
+                dir = Math.floor(Math.random()*3)+1;
+            else
+                dir = Math.floor(Math.random()*4);
             switch(dir){
                 case 0:
                     this.dir = 'f';
@@ -334,7 +373,7 @@ export class Demo3 extends Scene {
         this.ghost1 = new Ghost(Mat4.translation(0,0,-9.25*this.scale), this.scale, speed);
         this.ghost2 = new Ghost(Mat4.translation(-2*this.scale,0,-9.25*this.scale), this.scale, speed);
         this.ghost3 = new Ghost(Mat4.translation(2*this.scale,0,-9.25*this.scale), this.scale, speed);
-        this.alive = [this.pacman, this.ghost1, this.ghost2, this.ghost3];
+        this.runners = [this.pacman, this.ghost1, this.ghost2, this.ghost3];
 
         this.walls = [];
         this.make_walls(this.scale);
@@ -381,8 +420,8 @@ export class Demo3 extends Scene {
         });
         this.new_line(); this.new_line();
         this.key_triggered_button("Camera POV", ["c"], () => {
-            for (let i = 0; i < this.alive.length; ++i) {
-                const runner = this.alive[i];
+            for (let i = 0; i < this.runners.length; ++i) {
+                const runner = this.runners[i];
                 let R = runner.getRotationMatrix();
                 let new_dir;
                 if (this.follow){
@@ -416,8 +455,8 @@ export class Demo3 extends Scene {
         
         //const ghost_colors = ["FF8888","",""]
         let dir_R = Mat4.identity();
-        for (let i = 0; i < this.alive.length; ++i) {
-            const runner = this.alive[i];
+        for (let i = 0; i < this.runners.length; ++i) {
+            const runner = this.runners[i];
             if (!this.follow || i > 0)
                 dir_R = runner.getRotationMatrix();
 
@@ -429,7 +468,7 @@ export class Demo3 extends Scene {
         }
 
         var random = Math.floor((Math.random()*10000));
-        console.log(random);
+        //console.log(random);
         if (!map){
             // Speed Powerup Generation
             if (this.speed_powerup === false && random % 500 === 0)
@@ -446,13 +485,14 @@ export class Demo3 extends Scene {
         // display():  Called once per frame of animation.
         const t = program_state.animation_time / 1000.0, dt = program_state.animation_delta_time / 1000;
         // If the score is over some threshold, display game over 
-        if (this.score > 10){
+        if (this.score > 1000){
             this.alive = false;   
         }
 
         if (!this.alive){
             const gameover_transform = program_state.camera_transform.times(Mat4.translation(-3,0, -5)).times(Mat4.scale(0.5, 0.5, 0.5));//(Mat4.rotation(Math.PI/2, -1,0,0));
             this.disp_text(context, program_state, gameover_transform, "GAME OVER");
+            this.render(context, program_state);
             return;
         }
 
@@ -495,13 +535,13 @@ export class Demo3 extends Scene {
         program_state.lights = [new Light(light_positions[0], white, bright)];
 
         // Move runners
-        for (let i = 0; i < 1; ++i) {
-            const runner = this.alive[i];
+        for (let i = 0; i < this.runners.length; ++i) {
+            const runner = this.runners[i];
             runner.move(this.follow, dt);
             //if i>0 (ghosts), check collision with pacman
             //walls
-            if (runner.collision_detection(this.walls, 'walls')){
-                const move = -0.05-runner.speed*0.05;
+            if (runner.collision_detection(this.walls, 'wall')){
+                const move = -0.1-runner.speed*0.05;
                 let T;
                 switch(runner.dir){
                     case 'l': T = Mat4.translation(-move,0,0);
@@ -517,6 +557,10 @@ export class Demo3 extends Scene {
                 }
                 runner.updateMatrix(T);
                 runner.dir = 's';
+            }
+
+            if (i>0 && runner.collision_detection([this.pacman], 'pacman')){
+                this.alive = false;
             }
                 
         }
@@ -538,7 +582,7 @@ export class Demo3 extends Scene {
         const smoothed_pacman_view = Mat4.inverse(desired).times(Mat4.inverse(this.pov1_matrix));
         // const view_mat = Mat4.inverse(smoothed_pacman_view.times(Mat4.translation(0,15*this.scale,0)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
         // program_state.view_mat = view_mat;
-        let view_mat = Mat4.look_at(vec3(0, 27*this.scale, -1*this.scale), vec3(0, 0, -5*this.scale), vec3(0, 0, -1));
+        let view_mat = Mat4.look_at(vec3(0, 27*this.scale, -7.5*this.scale), vec3(0, 0, -7.5*this.scale), vec3(0, 0, -1));
         program_state.view_mat =  view_mat; 
         program_state.projection_transform = Mat4.perspective(Math.PI / 3, 1, 2, 500);
         //program_state.set_camera(view_mat);
@@ -830,7 +874,7 @@ export class Demo3 extends Scene {
         let model_trans_wall_7 = Mat4.translation(0,0,-7.25);
         let model_trans_wall_8 = Mat4.translation(3.25,0,-9);
         let model_trans_wall_9 = Mat4.translation(-3.25,0,-9);
-        let model_trans_wall_10 = Mat4.translation(0,0,-10.75); //change later to make gate
+        //let model_trans_wall_10 = Mat4.translation(0,0,-10.75); //change later to make gate
         
         //outer walls
         //vert out of top wall
@@ -850,7 +894,7 @@ export class Demo3 extends Scene {
         this.make_wall(model_trans_wall_7, 7, maze_scale, false, 0.5);
         this.make_wall(model_trans_wall_8, 4, maze_scale, true, 0.5);
         this.make_wall(model_trans_wall_9, 4, maze_scale, true, 0.5);
-        this.make_wall(model_trans_wall_10, 7, maze_scale, false, 0.5);
+        //this.make_wall(model_trans_wall_10, 7, maze_scale, false, 0.5);
 
         this.make_wall(model_trans_wall_11, 4, maze_scale, true);
         this.make_wall(model_trans_wall_12, 27, maze_scale, false, 0.5);
