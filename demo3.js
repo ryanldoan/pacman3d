@@ -89,7 +89,11 @@ class Maze_Runner {
                 detector = (my_x, my_z, obj) => {return this.wall_collision_detection(my_x, my_z, obj)};
                 break;
             case 'pellet':
+                detector = (my_x, my_z, obj) => {return this.pellet_collision_detection(my_x, my_z, obj, 0.2*this.maze_scale)};
+                break;
             case 'invinc_pellet':
+                detector = (my_x, my_z, obj) => {return this.pellet_collision_detection(my_x, my_z, obj, 0.5*this.maze_scale)};
+                break;
             case 'pacman':
                 detector = (my_x, my_z, obj) => {return this.pacman_collision_detection(my_x, my_z, obj)};
                 break;
@@ -102,8 +106,16 @@ class Maze_Runner {
         for (var i = 0; i < arr.length; i++)
         {
             const obj = arr[i];
-            if ( detector(my_x, my_z, obj) )
+            if ( detector(my_x, my_z, obj) ){
+
+                //if pellet, remove from array
+                if (type === 'pellet' || type === 'invinc_pellet'){
+                    arr.splice(i,1);
+                }
+                    
                 return true;
+            }
+                
         }
         return false;
     }
@@ -121,11 +133,21 @@ class Maze_Runner {
                 }
             }
         }
-
         return false;
     }
 
     pellet_collision_detection(my_x, my_z, pellet_transform, r){
+        pellet_transform = pellet_transform.times(Mat4.inverse(Mat4.scale(r,r,r)))
+        let pellet_x = pellet_transform[0][3];
+        let pellet_z = pellet_transform[2][3];
+        const ghost_r = 0.8;
+
+        if ((pellet_x >= (my_x - 1)) && (pellet_x <= (my_x + 1)) &&
+            ((pellet_z >= (my_z - 1)) && (pellet_z <= (my_z + 1))))
+        {
+            return true;
+        }
+        return false;
     }
 
     wall_collision_detection(my_x, my_z, wall){
@@ -538,7 +560,11 @@ export class Demo3 extends Scene {
         for (let i = 0; i < this.runners.length; ++i) {
             const runner = this.runners[i];
             runner.move(this.follow, dt);
-            //if i>0 (ghosts), check collision with pacman
+            //ghost collision with pacman
+            if (i>0 && runner.collision_detection([this.pacman], 'pacman')){
+                this.alive = false;
+            }
+
             //walls
             if (runner.collision_detection(this.walls, 'wall')){
                 const move = -0.1-runner.speed*0.05;
@@ -559,9 +585,13 @@ export class Demo3 extends Scene {
                 runner.dir = 's';
             }
 
-            if (i>0 && runner.collision_detection([this.pacman], 'pacman')){
-                this.alive = false;
-            }
+            //pellets
+            if (runner.collision_detection(this.pellets, 'pellet'))
+                this.score += 10;
+            if (runner.collision_detection(this.invinc_pellets, 'invinc_pellet'))
+                this.score += 50;
+
+            
                 
         }
         //this.wall_collision_detection();
