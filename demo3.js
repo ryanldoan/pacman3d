@@ -525,6 +525,21 @@ export class Demo3 extends Scene {
         if ((pac_x >= (wall_x - x_len)) && (pac_x <= (wall_x + x_len)) &&
             ((pac_z >= (wall_z - z_len)) && (pac_z <= (wall_z + z_len))))
         {
+            const move = -0.05-this.pacman.speed*0.05;
+            let T;
+            switch(this.pacman.dir){
+                case 'l': T = Mat4.translation(-move,0,0);
+                    break;
+                case 'r': T = Mat4.translation(move,0,0);
+                    break;
+                case 'f': T = Mat4.translation(0,0,-move);
+                    break;
+                case 'b': T = Mat4.translation(0,0,move);
+                    break;
+                default: T = Mat4.translation(0,0,0);
+                    break;
+            }
+            this.pacman.updateMatrix(T);
             this.pacman.dir = 's';
             return true;
         }else return false;
