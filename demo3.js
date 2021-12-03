@@ -557,9 +557,7 @@ export class Demo3 extends Scene {
             if (this.invincible_time > 0)
                 this.invincibleColorTimer+=1;
 
-
             if (i>0 && this.invincible_time > 0) {
-
                 if (this.invincibleColorTimer > 3500) {
                     if (this.invincibleColorTimer % 25 === 0) {
                         material = material.override({color: color(1,1,1,1)});
@@ -569,12 +567,8 @@ export class Demo3 extends Scene {
                 }
                 else 
                     material = material.override({color: color(0,0,1,1)});
-            }
+            } 
 
-            if (this.invincibleColorTimer === 4720)
-                this.invincibleColorTimer = 0;
-                
-            //console.log(this.invincible_time);
             if (map){
                 runner.model_info.shape.draw(context, program_state, runner.model_transform.times(dir_R).times(runner.upright_R), material.override({ambient: 1, specularity: 0, diffusivity: 0}));
             } else {
@@ -706,6 +700,7 @@ export class Demo3 extends Scene {
         if (this.pacman.collision_detection(this.invinc_pellets, 'invinc_pellet', true)){
             this.score += 50;
             this.invincible_time = 10;
+            this.invincibleColorTimer = 0;
         }
         this.invincible_time = Math.max(0,this.invincible_time-dt);
 
