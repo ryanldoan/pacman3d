@@ -386,9 +386,11 @@ export class Demo3 extends Scene {
             } 
         }
 
+        var random = Math.floor((Math.random()*10000));
+        console.log(random);
         if (!map){
             // Speed Powerup Generation
-            if (this.speed_powerup === false)
+            if (this.speed_powerup === false && random % 500 === 0)
                 this.speed_powerup_pos_checker();
             this.make_speed_powerup(context, program_state, this.scale);
 
