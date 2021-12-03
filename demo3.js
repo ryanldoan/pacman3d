@@ -404,7 +404,7 @@ export class Demo3 extends Scene {
         // display():  Called once per frame of animation.
         const t = program_state.animation_time / 1000.0, dt = program_state.animation_delta_time / 1000;
         // If the score is over some threshold, display game over 
-        if (this.score > 10){
+        if (this.score > 1000){
             const gameover_transform = program_state.camera_transform.times(Mat4.translation(-3,0, -5)).times(Mat4.scale(0.5, 0.5, 0.5));//(Mat4.rotation(Math.PI/2, -1,0,0));
             this.disp_text(context, program_state, gameover_transform, "GAME OVER");
             return;  
@@ -473,9 +473,11 @@ export class Demo3 extends Scene {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         
         const smoothed_pacman_view = Mat4.inverse(desired).times(Mat4.inverse(this.pov1_matrix));
-        const view_mat = Mat4.inverse(smoothed_pacman_view.times(Mat4.translation(0,15*this.scale,0)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
-        program_state.view_mat = view_mat;
-        program_state.projection_transform = Mat4.perspective(Math.PI / 3, 1.3, 2, 500);
+        // const view_mat = Mat4.inverse(smoothed_pacman_view.times(Mat4.translation(0,15*this.scale,0)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
+        // program_state.view_mat = view_mat;
+        let view_mat = Mat4.look_at(vec3(0, 27*this.scale, -1*this.scale), vec3(0, 0, -5*this.scale), vec3(0, 0, -1));
+        program_state.view_mat =  view_mat; 
+        program_state.projection_transform = Mat4.perspective(Math.PI / 3, 1, 2, 500);
         //program_state.set_camera(view_mat);
         this.render(context, program_state, true);
 
@@ -492,7 +494,7 @@ export class Demo3 extends Scene {
         if (this.follow)
             this.shapes.square_2d.draw(context, program_state,
                 Mat4.translation(-.99, .26, 0).times(
-                Mat4.scale(0.5, 0.4 * gl.canvas.width / gl.canvas.height, 1)
+                Mat4.scale(0.35, 0.4 * gl.canvas.width / gl.canvas.height, 1)
                 ),
                 this.depth_tex.override({texture: this.lightDepthTexture})
             );
