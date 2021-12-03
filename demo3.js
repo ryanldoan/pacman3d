@@ -12,6 +12,7 @@ import {Color_Phong_Shader, Shadow_Textured_Phong_Shader,
 
 var speedCollide = false;
 var activeSpeedPowerup = 0;
+var allowSpawn = true;
 
 // 2D shape, to display the texture buffer
 const Square =
@@ -105,15 +106,19 @@ class Maze_Runner {
             case 1:
                     speed_transform = Mat4.translation(-1.5*this.maze_scale,0,4.5*this.maze_scale);
                     this.speed_collision_helper(speed_transform, my_x, my_z);
+                    break;
             case 2:
                     speed_transform = Mat4.translation(1.5*this.maze_scale,0,4.5*this.maze_scale);
                     this.speed_collision_helper(speed_transform, my_x, my_z);
+                    break;
             case 3:
                     speed_transform = Mat4.translation(1.5*this.maze_scale,0,-20*this.maze_scale);
                     this.speed_collision_helper(speed_transform, my_x, my_z);
+                    break;
             case 4:
                     speed_transform = Mat4.translation(-1.5*this.maze_scale,0,-20*this.maze_scale);
                     this.speed_collision_helper(speed_transform, my_x, my_z);
+                    break;
         }
 
         if (this.collide === true) {
@@ -121,7 +126,8 @@ class Maze_Runner {
             this.timer += 1;
             speedCollide = true;
             this.model_info.material.color = hex_color("#00FF00");
-
+            allowSpawn = false;
+            
             if (this.timer > 200) {
                 if (this.timer % 10 === 0) {
                     this.model_info.material.color = hex_color("#FFFF00");
@@ -136,6 +142,7 @@ class Maze_Runner {
                 this.timer = 0;
                 speedCollide = false;
                 this.model_info.material.color = hex_color("#FFFF00");
+                allowSpawn = true;
             }
         }
                 }
@@ -563,9 +570,11 @@ export class Demo3 extends Scene {
         //console.log(random);
         if (!map){
             // Speed Powerup Generation
+            if (allowSpawn === true) {
             if (this.speed_powerup === false && random % 500 === 0)
                 this.speed_powerup_pos_checker();
             this.make_speed_powerup(context, program_state, this.scale);
+            }
 
             const score_transform = program_state.camera_transform.times(Mat4.translation(3.75,3.75,-10)).times(Mat4.scale(0.2, 0.2, 0.2));//(Mat4.rotation(Math.PI/2, -1,0,0));
             this.disp_text(context, program_state, score_transform, "Score: "+String(this.score).padStart(5,'0'));
@@ -669,7 +678,6 @@ export class Demo3 extends Scene {
             }
 
             if (runner.speed_collision_detection()) {
-                console.log("hi");
             }
         }
 
@@ -1040,7 +1048,7 @@ export class Demo3 extends Scene {
      
     make_speed_powerup(context, program_state, scale) {
         let model_transform = Mat4.identity();
-        if (this.speed_powerup_pos1 === true) {
+        if (this.speed_powerup_pos1 === true && activeSpeedPowerup === 1) {
             this.scale_factor -= .008;
             let speed_transform1 = model_transform.times(Mat4.translation(-1.5*scale,0,4.5*scale)).times(Mat4.scale(this.scale_factor, this.scale_factor, this.scale_factor));
             
@@ -1051,15 +1059,16 @@ export class Demo3 extends Scene {
                 this.shapes.cube.draw(context,program_state, speed_transform1, this.materials.speed_powerup.override({color: hex_color("FF0000")}));
             }
             
-            if (this.scale_factor < 0 || (speedCollide === true && activeSpeedPowerup === 1)) {
+            if (this.scale_factor < 0) {
                 this.speed_powerup_pos1 = false;
                 this.speed_powerup = false;
                 this.scale_factor = 1;
                 this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
                 speedCollide = false;
+                activeSpeedPowerup = 0;
             }
 
-        } else if (this.speed_powerup_pos2 === true) {
+        } else if (this.speed_powerup_pos2 === true && activeSpeedPowerup === 2) {
             this.scale_factor -= .008;
             let speed_transform2 = model_transform.times(Mat4.translation(1.5*scale,0,4.5*scale)).times(Mat4.scale(this.scale_factor, this.scale_factor, this.scale_factor));;
             
@@ -1070,15 +1079,16 @@ export class Demo3 extends Scene {
                 this.shapes.cube.draw(context,program_state, speed_transform2, this.materials.speed_powerup.override({color: hex_color("FF0000")}));
             }
 
-            if (this.scale_factor < 0 || (speedCollide === true && activeSpeedPowerup === 2)) {
+            if (this.scale_factor < 0) {
                 this.speed_powerup_pos2 = false;
                 this.speed_powerup = false;
                 this.scale_factor = 1;
                 this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
                 speedCollide = false;
+                activeSpeedPowerup = 0;
             }
             
-        } else if (this.speed_powerup_pos3 === true) {
+        } else if (this.speed_powerup_pos3 === true && activeSpeedPowerup === 3) {
             this.scale_factor -= .008;
             let speed_transform3 = model_transform.times(Mat4.translation(1.5*scale,0,-20*scale)).times(Mat4.scale(this.scale_factor, this.scale_factor, this.scale_factor));;
             
@@ -1089,15 +1099,16 @@ export class Demo3 extends Scene {
                 this.shapes.cube.draw(context,program_state, speed_transform3, this.materials.speed_powerup.override({color: hex_color("FF0000")}));
             }
 
-            if (this.scale_factor < 0 || (speedCollide === true && activeSpeedPowerup === 3)) {
+            if (this.scale_factor < 0) {
                 this.speed_powerup_pos3 = false;
                 this.speed_powerup = false;
                 this.scale_factor = 1;
                 this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
                 speedCollide = false;
+                activeSpeedPowerup = 0;
             }
             
-        } else if (this.speed_powerup_pos4 === true) {
+        } else if (this.speed_powerup_pos4 === true && activeSpeedPowerup === 4) {
             this.scale_factor -= .008;
             let speed_transform4 = model_transform.times(Mat4.translation(-1.5*scale,0,-20*scale)).times(Mat4.scale(this.scale_factor, this.scale_factor, this.scale_factor));;
             
@@ -1108,12 +1119,13 @@ export class Demo3 extends Scene {
                 this.shapes.cube.draw(context,program_state, speed_transform4, this.materials.speed_powerup.override({color: hex_color("FF0000")}));
             }
 
-            if (this.scale_factor < 0 || (speedCollide === true && activeSpeedPowerup === 4)) {
+            if (this.scale_factor < 0) {
                 this.speed_powerup_pos4 = false;
                 this.speed_powerup = false;
                 this.scale_factor = 1;
                 this.speed_pos_random_number = Math.floor(Math.random() * (Math.floor(4) - Math.ceil(1) + 1) + Math.ceil(1));
                 speedCollide = false;
+                activeSpeedPowerup = 0;
             }
         }
     }
