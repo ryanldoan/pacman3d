@@ -454,6 +454,7 @@ export class Demo3 extends Scene {
         this.invincible_time = 0;
         this.alive = true; 
 
+        this.invincibleColorTimer = 0;
 
         this.speed_powerup = false;
         this.speed_powerup_pos1 = false;
@@ -555,9 +556,28 @@ export class Demo3 extends Scene {
                 dir_R = runner.getRotationMatrix();
 
             let material = runner.model_info.material;
-            if (i>0 && this.invincible_time > 0)
-                material = material.override({color: color(0.25+1/this.invincible_time,0.25+1/this.invincible_time,1,1)});
+
+            if (this.invincible_time > 0)
+                this.invincibleColorTimer+=1;
+
+            if (this.invincible_time === 0) {
+                console.log(this.invincibleColorTimer);
+            }
+
+            if (i>0 && this.invincible_time > 0) {
+
+                if (this.invincibleColorTimer > 3500) {
+                    if (this.invincibleColorTimer % 25 === 0) {
+                        material = material.override({color: color(1,1,1,1)});
+                    }
+                    else
+                        material = material.override({color: color(0,0,1,1)});
+                }
+                else 
+                    material = material.override({color: color(0,0,1,1)});
+            }
                 
+            //console.log(this.invincible_time);
             if (map){
                 runner.model_info.shape.draw(context, program_state, runner.model_transform.times(dir_R).times(runner.upright_R), material.override({ambient: 1, specularity: 0, diffusivity: 0}));
             } else {
