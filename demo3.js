@@ -141,7 +141,7 @@ class Maze_Runner {
                 }
     }
 
-    collision_detection(arr, type='wall'){
+    collision_detection(arr, type='wall', remove=false){
         //iterate through each wall
         const my_center = this.model_transform;
         const my_x = my_center[0][3];
