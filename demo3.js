@@ -77,7 +77,7 @@ class Maze_Runner {
         return this.model_transform;
     }
 
-    collision_detection(arr, type='wall'){
+    collision_detection(arr, type='wall', remove=false){
         //iterate through each wall
         const my_center = this.model_transform;
         const my_x = my_center[0][3];
@@ -109,7 +109,7 @@ class Maze_Runner {
             if ( detector(my_x, my_z, obj) ){
 
                 //if pellet, remove from array
-                if (type === 'pellet' || type === 'invinc_pellet'){
+                if (remove){
                     arr.splice(i,1);
                 }
                     
@@ -380,6 +380,7 @@ export class Demo3 extends Scene {
         this.score_update_dt = 0;
         this.score_update = false; 
         const speed = this.scale;
+        this.invincible_time = 0;
         this.alive = true; 
 
 
@@ -482,10 +483,15 @@ export class Demo3 extends Scene {
             if (!this.follow || i > 0)
                 dir_R = runner.getRotationMatrix();
 
+            let material = runner.model_info.material;
+            if (i>0 && this.invincible_time > 0)
+                material = material.override({color: hex_color("5555FF")});
+                
             if (map){
-                runner.model_info.shape.draw(context, program_state, runner.model_transform.times(dir_R).times(runner.upright_R), runner.model_info.material.override({ambient: 1, specularity: 0, diffusivity: 0}));
+                runner.model_info.shape.draw(context, program_state, runner.model_transform.times(dir_R).times(runner.upright_R), material.override({ambient: 1, specularity: 0, diffusivity: 0}));
             } else {
-                runner.model_info.shape.draw(context, program_state, runner.model_transform.times(dir_R).times(runner.upright_R), runner.model_info.material);
+                
+                runner.model_info.shape.draw(context, program_state, runner.model_transform.times(dir_R).times(runner.upright_R), material);
             } 
         }
 
@@ -507,7 +513,7 @@ export class Demo3 extends Scene {
         // display():  Called once per frame of animation.
         const t = program_state.animation_time / 1000.0, dt = program_state.animation_delta_time / 1000;
         // If the score is over some threshold, display game over 
-        if (this.score > 1000){
+        if (this.score > 10000){
             this.alive = false;   
         }
 
@@ -559,10 +565,14 @@ export class Demo3 extends Scene {
         // Move runners
         for (let i = 0; i < this.runners.length; ++i) {
             const runner = this.runners[i];
+
             runner.move(this.follow, dt);
+
             //ghost collision with pacman
             if (i>0 && runner.collision_detection([this.pacman], 'pacman')){
-                this.alive = false;
+                if (this.invincible_time > 0){
+                    this.runners.splice(i,1);
+                }else this.alive = false;
             }
 
             //walls
@@ -584,17 +594,17 @@ export class Demo3 extends Scene {
                 runner.updateMatrix(T);
                 runner.dir = 's';
             }
-
-            //pellets
-            if (runner.collision_detection(this.pellets, 'pellet'))
-                this.score += 10;
-            if (runner.collision_detection(this.invinc_pellets, 'invinc_pellet'))
-                this.score += 50;
-
-            
-                
         }
-        //this.wall_collision_detection();
+
+        //pellets
+        //console.log(this.invincible_time);
+        if (this.pacman.collision_detection(this.pellets, 'pellet', true))
+            this.score += 10;
+        if (this.pacman.collision_detection(this.invinc_pellets, 'invinc_pellet', true)){
+            this.score += 50;
+            this.invincible_time += 10;
+        }
+        this.invincible_time = Math.max(0,this.invincible_time-dt);
 
         let desired;
         if (this.follow)
@@ -609,7 +619,7 @@ export class Demo3 extends Scene {
         gl.viewport(0, 0, this.lightDepthTextureSize, this.lightDepthTextureSize);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         
-        const smoothed_pacman_view = Mat4.inverse(desired).times(Mat4.inverse(this.pov1_matrix));
+        //const smoothed_pacman_view = Mat4.inverse(desired).times(Mat4.inverse(this.pov1_matrix));
         // const view_mat = Mat4.inverse(smoothed_pacman_view.times(Mat4.translation(0,15*this.scale,0)).times(Mat4.rotation(-Math.PI/2,1,0,0)));
         // program_state.view_mat = view_mat;
         let view_mat = Mat4.look_at(vec3(0, 27*this.scale, -7.5*this.scale), vec3(0, 0, -7.5*this.scale), vec3(0, 0, -1));
