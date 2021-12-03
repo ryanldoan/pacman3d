@@ -68,7 +68,7 @@ class Maze_Runner {
     }
 
     move(follow, dt){
-        const move = -0.1-this.speed*0.05;
+        const move = -0.05-this.speed*0.05;
         let T = this.getTransMatrix(move, follow);
         this.updateMatrix(T);
 
@@ -449,7 +449,7 @@ export class Demo3 extends Scene {
             }else
                 runner.move(this.follow, dt);
         }
-        this.collision_detection();
+        this.wall_collision_detection();
 
         let desired;
         if (this.follow)
@@ -490,7 +490,7 @@ export class Demo3 extends Scene {
             );
     }
 
-    collision_detection(){
+    wall_collision_detection(){
         //iterate through each wall
         for (var i = 0; i < this.walls.length; i++)
         {
@@ -511,14 +511,23 @@ export class Demo3 extends Scene {
                 x_len *= wall.length;
                 z_len *= wall.width;
             }
-            
-            if ((pac_x > (wall_x - x_len)) && (pac_x < (wall_x + x_len)) && ((pac_z > (wall_z - z_len)) && (pac_z < (wall_z + z_len))))
-            {
-                console.log("COLLISION!");
-                //console.log(walls_ds[1])
-                this.pacman.dir = 's';
+
+            for (let x=pac_x-1; x <= pac_x+1; x+=2){
+                for (let z=pac_z-1; z <= pac_z+1; z+=2){
+                    //console.log('Wall', i, ':',x,z,wall_x, wall_z, x_len, z_len);
+                    this.wall_collision_checker(x, z, wall_x, wall_z, x_len, z_len);
+                }
             }
         }
+    }
+
+    wall_collision_checker(pac_x, pac_z, wall_x, wall_z, x_len, z_len){
+        if ((pac_x >= (wall_x - x_len)) && (pac_x <= (wall_x + x_len)) &&
+            ((pac_z >= (wall_z - z_len)) && (pac_z <= (wall_z + z_len))))
+        {
+            this.pacman.dir = 's';
+            return true;
+        }else return false;
     }
     
     draw_pellets(context, program_state, map=false){
