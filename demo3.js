@@ -522,7 +522,15 @@ export class Demo3 extends Scene {
             this.disp_text(context, program_state, gameover_transform, "GAME OVER");
             this.render(context, program_state);
             return;
-        }
+        }   
+
+        //if pellet array AND incibility pellet array is empty
+        if ((this.pellets === undefined || this.pellets.length == 0) && (this.invinc_pellets === undefined || this.invinc_pellets.length == 0)) {
+            const gameover_transform = program_state.camera_transform.times(Mat4.translation(-2.2,0, -5)).times(Mat4.scale(0.5, 0.5, 0.5));//(Mat4.rotation(Math.PI/2, -1,0,0));
+            this.disp_text(context, program_state, gameover_transform, "VICTORY");
+            this.render(context, program_state);
+            return;
+        }  
 
         if (this.score_update){
             this.score_update_dt += dt;
