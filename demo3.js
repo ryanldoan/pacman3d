@@ -360,7 +360,7 @@ export class Demo3 extends Scene {
 
     disp_text(context, program_state, M, str, line_spacing=2){
         const multi_line_string = str.split('\n');
-        for (let line of multi_line_string.slice(0, 30)) {             // Assign the string to Text_String, and then draw it.
+        for (let line of multi_line_string.slice(0, 10)) {             // Assign the string to Text_String, and then draw it.
             this.shapes.text.set_string(line, context.context);
             this.shapes.text.draw(context, program_state, M, this.materials.text_image);
             // Move our basis down a line.
@@ -401,6 +401,11 @@ export class Demo3 extends Scene {
     display(context, program_state) {
         // display():  Called once per frame of animation.
         const t = program_state.animation_time / 1000.0, dt = program_state.animation_delta_time / 1000;
+        if (this.score > 10){
+            const gameover_transform = program_state.camera_transform.times(Mat4.translation(-3,0, -5)).times(Mat4.scale(0.5, 0.5, 0.5));//(Mat4.rotation(Math.PI/2, -1,0,0));
+            this.disp_text(context, program_state, gameover_transform, "GAME OVER");
+            return;  
+        }
 
         if (this.score_update){
             this.score_update_dt += dt;
