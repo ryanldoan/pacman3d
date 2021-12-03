@@ -594,7 +594,7 @@ export class Demo3 extends Scene {
         if (!map){
             // Speed Powerup Generation
             if (allowSpawn === true) {
-            if (this.speed_powerup === false && random % 500 === 0)
+            if (this.speed_powerup === false && random % 50 === 0)
                 this.speed_powerup_pos_checker();
             this.make_speed_powerup(context, program_state, this.scale);
             }
